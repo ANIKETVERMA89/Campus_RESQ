@@ -1,10 +1,15 @@
 #include <iostream>
+#include "include/ground.h"
 
 using namespace std;
 
-int main() {
+int main()
+{
+    CampusGraph campus;
 
-    cout << "Campus RESQ Started!" << endl;
+    buildGroundFloor(campus);
+
+    campus.displayGraph();
 
     return 0;
 }
