@@ -10,8 +10,6 @@ using namespace std;
 
 inline void buildGroundFloor(CampusGraph& graph)
 {
-    // 1. CREATE NODES
-    // Node IDs match your campus map.
 
     graph.addNode(new Node(1, "Main Entrance"));
     graph.addNode(new Node(2, "Admission Enquiry"));
@@ -50,11 +48,7 @@ inline void buildGroundFloor(CampusGraph& graph)
     graph.addNode(new Node(35, "Stairs"));
     graph.addNode(new Node(36, "Exit"));
 
-    // 2. CREATE WALKABLE CONNECTIONS
-    // Format: source ID, destination ID, distance
-    // Distances are placeholders in metres.
-    // Replace them with actual measured distances.
-
+    
     int edges[][2] = {
         {1,35}, {1,2}, {1,33}, {1,34},
         {2,35}, {2,3}, {2,34},
