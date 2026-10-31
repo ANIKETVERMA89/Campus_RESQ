@@ -1,54 +1,39 @@
-#include "../include/Route.h"
+#include "../include/RouteCost.h"
 
-Route::Route()
-    : source(-1), destination(-1), totalDistance(0.0), totalRisk(0.0), totalCongestion(0.0), totalCost(0.0) {}
-
-Route::Route(int src, int dest, const std::vector<int>& p, double dist, double risk, double cong, double cost)
-    : source(src), destination(dest), path(p), totalDistance(dist), totalRisk(risk), totalCongestion(cong), totalCost(cost) {}
-
-int Route::getSource() const {
-    return source;
-}
-
-int Route::getDestination() const {
-    return destination;
-}
-
-const std::vector<int>& Route::getPath() const {
-    return path;
-}
-
-double Route::getTotalDistance() const {
-    return totalDistance;
-}
-
-double Route::getTotalRisk() const {
-    return totalRisk;
-}
-
-double Route::getTotalCongestion() const {
-    return totalCongestion;
-}
-
-double Route::getTotalCost() const {
-    return totalCost;
-}
-
-void Route::displayRoute() const {
-    std::cout << "--- Route Summary ---" << std::endl;
-    std::cout << "From: " << source << " -> To: " << destination << std::endl;
-    std::cout << "Path: ";
-    for (size_t i = 0; i < path.size(); ++i) {
-        std::cout << path[i];
-        if (i + 1 < path.size()) std::cout << " -> ";
+RouteCost::RouteCost(double a, double b, double c)
+    : alpha(a), beta(b), gamma(c) {
+    // Dijkstra needs non-negative costs, so fall back to defaults if invalid
+    if (a < 0 || b < 0 || c < 0) {
+        alpha = 1.0;
+        beta = 2.0;
+        gamma = 1.5;
     }
-    std::cout << "\nDistance: " << totalDistance 
-              << " | Risk: " << totalRisk 
-              << " | Congestion: " << totalCongestion 
-              << " | Total Cost: " << totalCost << std::endl;
 }
 
-// Operator Overloading implementation
-bool Route::operator<(const Route& other) const {
-    return this->totalCost < other.totalCost;
+void RouteCost::setWeights(double a, double b, double c) {
+    if (a < 0 || b < 0 || c < 0) return; // reject: negative weights break Dijkstra
+    alpha = a;
+    beta = b;
+    gamma = c;
+}
+
+double RouteCost::getAlpha() const { return alpha; }
+double RouteCost::getBeta() const { return beta; }
+double RouteCost::getGamma() const { return gamma; }
+
+// Overload 1: blocked segments are impassable
+double RouteCost::calculate(double distance, double risk, double congestion, bool blocked) const {
+    if (blocked) {
+        return std::numeric_limits<double>::infinity();
+    }
+    return calculate(distance, risk, congestion);
+}
+
+// Overload 2: normal weighted sum
+double RouteCost::calculate(double distance, double risk, double congestion) const {
+    return alpha * distance + beta * risk + gamma * congestion;
+}
+
+bool RouteCost::isBlockedCost(double cost) {
+    return cost == std::numeric_limits<double>::infinity();
 }
