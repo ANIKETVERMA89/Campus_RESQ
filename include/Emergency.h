@@ -8,7 +8,7 @@ class Emergency {
 protected:
     int emergencyId;
     int locationId;
-    int severity;      // Higher numeric value = higher priority
+    int severity;     
     std::string status;
 
 public:
@@ -34,4 +34,4 @@ struct EmergencyPriorityComparator {
     }
 };
 
-#endif // EMERGENCY_H
+#endif 
