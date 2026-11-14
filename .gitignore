@@ -1,0 +1,23 @@
+# Build files
+build/
+bin/
+*.exe
+*.o
+*.out
+
+# VS Code
+.vscode/
+
+# Temporary files
+*.tmp
+
+# OS files
+.DS_Store
+Thumbs.db
+# Binaries
+campus_resq
+test_route.cpp
+test_routing.cpp
+index.html
+Makefile
+README.md
