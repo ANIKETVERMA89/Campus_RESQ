@@ -1,4 +1,12 @@
+.env
+.env.*
+!.env.example
+
+node_modules/
 build/
+*.exe
 *.o
-*.out
-.DS_Store
+*.dll
+
+__pycache__/
+.venv/
