@@ -1,0 +1,185 @@
+{
+ "note": "Presentation only (room type for colours/icons, floor). Topology, weights and exits come from backend_graph.json.",
+ "nodes": [
+  {
+   "id": 1,
+   "type": "HALL",
+   "floor": 0
+  },
+  {
+   "id": 2,
+   "type": "OFFICE",
+   "floor": 0
+  },
+  {
+   "id": 3,
+   "type": "HALL",
+   "floor": 0
+  },
+  {
+   "id": 4,
+   "type": "EXIT",
+   "floor": 0
+  },
+  {
+   "id": 5,
+   "type": "ROOM",
+   "floor": 0
+  },
+  {
+   "id": 6,
+   "type": "TOILET",
+   "floor": 0
+  },
+  {
+   "id": 7,
+   "type": "HALL",
+   "floor": 0
+  },
+  {
+   "id": 8,
+   "type": "HALL",
+   "floor": 0
+  },
+  {
+   "id": 9,
+   "type": "JUNCTION",
+   "floor": 0
+  },
+  {
+   "id": 10,
+   "type": "CLASS",
+   "floor": 0
+  },
+  {
+   "id": 11,
+   "type": "OFFICE",
+   "floor": 0
+  },
+  {
+   "id": 12,
+   "type": "OFFICE",
+   "floor": 0
+  },
+  {
+   "id": 13,
+   "type": "STAIRS",
+   "floor": 0
+  },
+  {
+   "id": 14,
+   "type": "LIFT",
+   "floor": 0
+  },
+  {
+   "id": 15,
+   "type": "LIFT",
+   "floor": 0
+  },
+  {
+   "id": 16,
+   "type": "LAB",
+   "floor": 0
+  },
+  {
+   "id": 17,
+   "type": "TOILET",
+   "floor": 0
+  },
+  {
+   "id": 18,
+   "type": "TOILET",
+   "floor": 0
+  },
+  {
+   "id": 19,
+   "type": "EXIT",
+   "floor": 0
+  },
+  {
+   "id": 20,
+   "type": "CLASS",
+   "floor": 0
+  },
+  {
+   "id": 21,
+   "type": "CLASS",
+   "floor": 0
+  },
+  {
+   "id": 22,
+   "type": "CLASS",
+   "floor": 0
+  },
+  {
+   "id": 23,
+   "type": "CLASS",
+   "floor": 0
+  },
+  {
+   "id": 24,
+   "type": "EXIT",
+   "floor": 0
+  },
+  {
+   "id": 25,
+   "type": "TOILET",
+   "floor": 0
+  },
+  {
+   "id": 26,
+   "type": "TOILET",
+   "floor": 0
+  },
+  {
+   "id": 27,
+   "type": "LAB",
+   "floor": 0
+  },
+  {
+   "id": 28,
+   "type": "HALL",
+   "floor": 0
+  },
+  {
+   "id": 29,
+   "type": "HALL",
+   "floor": 0
+  },
+  {
+   "id": 30,
+   "type": "OFFICE",
+   "floor": 0
+  },
+  {
+   "id": 31,
+   "type": "TOILET",
+   "floor": 0
+  },
+  {
+   "id": 32,
+   "type": "TOILET",
+   "floor": 0
+  },
+  {
+   "id": 33,
+   "type": "STAIRS",
+   "floor": 0
+  },
+  {
+   "id": 34,
+   "type": "HALL",
+   "floor": 0
+  },
+  {
+   "id": 35,
+   "type": "STAIRS",
+   "floor": 0
+  },
+  {
+   "id": 36,
+   "type": "EXIT",
+   "floor": 0
+  }
+ ]
+}

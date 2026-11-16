@@ -1,0 +1,16 @@
+/* Campus RESQ · Phone layout and reduced-motion preferences */
+@media (max-width:860px){
+  #legend{ display:none !important; }
+  #modeSeg button, #floorSeg button{ padding:5px 9px; }
+  #panel{ left:8px; right:8px; top:auto; bottom:8px; width:auto; height:min(52vh,470px); }
+  #panel.collapsed{ height:50px; } #panel.collapsed .tabbody{ display:none; }
+  #collapse{ display:grid; place-items:center; width:38px; border:0; background:transparent; color:var(--muted); font-size:16px; }
+  #tools{ top:auto; bottom:calc(min(52vh,470px) + 16px); right:8px; flex-direction:column; }
+  #chipNodes{ display:none; }
+  #tools button{ width:38px; height:38px; } #tools hr{ display:none; }
+  #hint{ display:none; }
+  #top{ left:8px; right:8px; top:8px; flex-wrap:wrap; }
+  #brand small{ display:none; }
+  #toasts{ bottom:calc(min(52vh,470px) + 18px); }
+}
+@media (prefers-reduced-motion:reduce){ .chip.alert .dot{ animation:none; } .toast{ animation:none; } .rflow,.flame,.pulse{ animation:none; } }

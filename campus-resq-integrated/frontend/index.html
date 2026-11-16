@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Campus RESQ — Campus Map & Evacuation Command</title>
+<!-- Fonts: Google Fonts (Space Grotesk, JetBrains Mono) -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<!-- Styles: plain CSS3, loaded in this order -->
+<link rel="stylesheet" href="css/theme.css">
+<link rel="stylesheet" href="css/layout.css">
+<link rel="stylesheet" href="css/components.css">
+<link rel="stylesheet" href="css/views.css">
+<link rel="stylesheet" href="css/responsive.css">
+</head>
+<body>
+<div id="app">
+  <canvas id="gl" tabindex="0" aria-label="3D campus map"></canvas>
+  <div id="nogl" hidden><div><h2 style="color:var(--text);margin:0 0 6px">3D view unavailable</h2><p>WebGL could not start on this device or the 3D library failed to load.<br>All routing, alerts and drill tools below still work.</p></div></div>
+
+  <header id="top">
+    <div id="brand" class="glass"><div class="logo">R</div><div><b>Campus RESQ</b><small>Evacuation command</small></div></div>
+    <div class="chips">
+      <span class="chip glass" id="chipStatus"><i class="dot"></i><span id="statusTxt">ALL CLEAR</span></span>
+      <span class="chip glass" id="chipNodes">36 nodes · 60 links</span>
+      <div class="seg glass" id="modeSeg" role="group" aria-label="View"><button data-v="2d">Map</button><button data-v="graph">Graph</button><button data-v="3d">3D</button></div>
+      <div class="seg glass" id="floorSeg" role="group" aria-label="Floor"><button data-v="0">Ground</button><button data-v="1">First</button></div>
+    </div>
+  </header>
+
+  <div id="tools" class="glass" role="toolbar" aria-label="Camera tools">
+    <button id="tZin" class="only2d" title="Zoom in" aria-label="Zoom in">+</button>
+    <button id="tZout" class="only2d" title="Zoom out" aria-label="Zoom out">−</button>
+    <button id="tIso" class="on only3d" title="Isometric view">ISO</button>
+    <button id="tTop" class="only3d" title="Top-down view">TOP</button>
+    <button id="tSide" class="only3d" title="Side view">SIDE</button>
+    <hr>
+    <button id="tFrame" title="Frame current route">FIT</button>
+    <button id="tLabels" title="Cycle labels: key / all / off">LBL</button>
+    <button id="tSpin" class="only3d" title="Auto-rotate">SPIN</button>
+  </div>
+
+  <aside id="panel" class="glass">
+    <div style="display:flex;align-items:center">
+      <nav id="tabs" style="flex:1" role="tablist">
+        <button data-tab="help" class="on" role="tab">Help</button>
+        <button data-tab="route" role="tab">Route</button>
+        <button data-tab="alerts" role="tab">Alerts<span class="badge" id="badge" hidden>0</span></button>
+        <button data-tab="drill" role="tab">Drill</button>
+        <button data-tab="node" role="tab">Inspect</button>
+      </nav>
+      <button id="collapse" aria-label="Collapse panel">▾</button>
+    </div>
+
+    <section class="tabbody on" id="tab-help">
+      <h3>Get to safety</h3>
+      <div class="field"><label for="hYou">1. Where are you?</label>
+        <div class="row"><div class="field"><select id="hYou"></select></div><button class="btn small" id="hPickYou" title="Tap your room on the map">Pick on map</button></div></div>
+      <div class="field"><label>2. What is happening?</label>
+        <div class="seg" id="hType"><button data-v="fire" class="on">Fire</button><button data-v="security">Security threat</button><button data-v="medical">Medical</button></div></div>
+      <div class="field"><label for="hAt">3. Where is it?</label>
+        <div class="row"><div class="field"><select id="hAt"></select></div><button class="btn small" id="hPickAt" title="Tap the room on the map">Pick on map</button></div></div>
+      <button class="btn primary block" id="hGo" style="padding:13px;font-size:15px">Show my safest path</button>
+      <div id="helpOut"></div>
+      <p class="note">In any emergency, call 112. This guide reports the emergency to the command view and plans a path from the information entered; follow staff and emergency services if they tell you otherwise.</p>
+    </section>
+
+    <section class="tabbody" id="tab-route">
+      <h3>Find a safe route</h3>
+      <div class="row">
+        <div class="field"><label for="selFrom">From</label><select id="selFrom"></select></div>
+        <button class="btn small" id="btnSwap" title="Swap" aria-label="Swap from and to" style="margin-bottom:2px">⇄</button>
+      </div>
+      <div class="field" style="margin-top:12px"><label for="selTo">To</label><select id="selTo"></select></div>
+      <div class="field"><label>Algorithm</label>
+        <div class="seg" id="algoSeg"><button data-v="dijkstra" class="on">Dijkstra</button><button data-v="bfs">BFS</button><button data-v="compare">Compare</button></div>
+      </div>
+      <label class="check"><input type="checkbox" id="chkEvac"><span>Evacuation profile<small>Risk-heavy weights (β = 5), the backend’s evacuation setting.</small></span></label>
+      <details open style="margin:0 0 12px"><summary>Cost weights</summary>
+        <div class="sliders" style="margin-top:10px">
+          <div class="sl"><span>α distance</span><input type="range" id="sa" min="0" max="5" step="0.1" value="1"><output id="oa">1.0</output></div>
+          <div class="sl"><span>β risk</span><input type="range" id="sb" min="0" max="10" step="0.1" value="2"><output id="ob">2.0</output></div>
+        </div>
+      </details>
+      <div id="routeOut"></div>
+      <details><summary>How routing works</summary>
+        <p>Step cost = <code>α·distance + β·risk</code>, charged on the room being entered (the backend passes congestion as 0). Blocked rooms are skipped. Dijkstra minimises that cost; BFS minimises hops and reports distance as its cost.</p>
+        <p class="note">Exits are the rooms whose name contains “Exit” (backend rule): Exit, Exit 4, Exit, Exit. Corridor weights come from <code>ground.h</code> (1 unit = 10 m). Room positions are schematic.</p>
+      </details>
+    </section>
+
+    <section class="tabbody" id="tab-alerts">
+      <h3>Report an emergency</h3>
+      <div class="field"><label>Type</label>
+        <div class="seg" id="typeSeg"><button data-v="fire" class="on">Fire</button><button data-v="medical">Medical</button><button data-v="security">Security</button></div>
+      </div>
+      <div class="field"><label for="selLoc">Location</label><select id="selLoc"></select></div>
+      <div class="field"><label for="sev">Severity <b id="sevOut" style="color:var(--text);font-family:var(--mono)">6</b></label><input type="range" id="sev" min="1" max="10" step="1" value="6"></div>
+      <button class="btn primary block" id="btnReport">Report emergency</button>
+      <h3 style="margin-top:20px">Priority queue</h3>
+      <ul class="q" id="queue"></ul>
+      <div class="btns"><button class="btn danger" id="btnDispatch">Dispatch next</button><button class="btn" id="btnClearAlerts">Clear all</button></div>
+      <h3 style="margin-top:20px">Active response</h3>
+      <div id="responseOut"><p class="empty">Nothing dispatched yet.</p></div>
+      <p class="note">Fire and security block their room and spread risk to nearby rooms (×0.6 and ×0.5 per hop); risk from several incidents adds up. Medical adds no hazard. The queue is the backend’s priority queue: highest severity first; equal severities are not first-come-first-served.</p>
+    </section>
+
+    <section class="tabbody" id="tab-drill">
+      <h3>Evacuation plan</h3>
+      <p class="note" style="margin-top:0">Every room sends its occupants to the exit the backend picks for it (Dijkstra, evacuation weights). The backend has no crowd model, so routes do not adapt to each other.</p>
+      <div class="btns" style="margin-top:0"><button class="btn primary" id="btnDrill">Run drill</button></div>
+      <div id="drillOut"></div>
+    </section>
+
+    <section class="tabbody" id="tab-node">
+      <h3>Inspect a room</h3>
+      <div id="nodeOut"></div>
+    </section>
+  </aside>
+
+  <details id="legend" class="glass only2d" open>
+    <summary><svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true"><path d="M10 2 L14 16 L10 13 L6 16 Z" fill="var(--bad)"/></svg> N · Legend</summary>
+    <div class="lg lg-graph">
+      <span><i class="lgr" style="background:#7bc47f"></i>Entrance / Exit</span><span><i class="lgr" style="background:#f2cf66"></i>Office / Hall / Room</span>
+      <span><i class="lgr" style="background:#7fb2e6"></i>Classroom</span><span><i class="lgr" style="background:#c39bd9"></i>Lab</span>
+      <span><i class="lgr" style="background:#f0a35e"></i>Stairs / Lift</span><span><i class="lgr" style="background:#bdbdbd"></i>Toilet</span>
+      <span><i class="lgr" style="background:#fff;border:1px solid #3b4a6b"></i>Junction</span><span><i class="lgw">3</i>Edge weight (1 = 10 m)</span>
+      <span><i class="lgl" style="background:#4de1ff"></i>Route</span><span><i class="lgl" style="background:#16c784"></i>Your safest path</span>
+      <span><i class="lgr" style="background:#ff6a1a"></i>Fire</span><span><i class="lgh"></i>Blocked</span>
+      <span class="lgfloor"><i class="lgw" style="background:#8b6cff;color:#fff;border-color:#8b6cff">↓ G</i>Stairs/lift to another floor</span><span class="lgfloor"><i class="lgw" style="opacity:.6">not linked</i>Stairs not connected yet</span>
+    </div>
+    <div class="lg lg-map">
+      <span><i style="background:#ffd166"></i>Hall</span><span><i style="background:#5ec8ff"></i>Classroom</span>
+      <span><i style="background:#ff9f5e"></i>Lab</span><span><i style="background:#6ee7d7"></i>Office</span>
+      <span><i style="background:#b08cff"></i>Toilet</span><span><i style="background:#7aa2ff"></i>Stairs</span>
+      <span><i style="background:#8a94ad"></i>Lift</span><span><i style="background:#3ddc97"></i>Exit</span>
+      <span><i class="lgl" style="background:#4de1ff"></i>Route</span><span><i class="lgl" style="background:#ffb020"></i>BFS / responders</span>
+      <span><i class="lgr" style="background:#ff6a1a"></i>Fire</span><span><i class="lgr" style="background:#4da6ff"></i>Medical</span>
+      <span><i class="lgr" style="background:#8b5cf6"></i>Security</span>
+      <span><i class="lgw">3</i>Corridor weight (1 = 10 m)</span><span><i class="lgh"></i>Blocked</span><span><i class="lgr" style="background:#16a36b"></i>Assembly point</span>
+      <span class="lgfloor"><i class="lgw" style="background:#8b6cff;color:#fff;border-color:#8b6cff">↓ G</i>Stairs/lift to another floor</span><span class="lgfloor"><i class="lgw" style="opacity:.6">not linked</i>Stairs not connected yet</span>
+    </div>
+    <p>Schematic layout · not to scale</p>
+  </details>
+  <div id="tip" class="glass"></div>
+  <div id="hint">drag orbit · right-drag pan · scroll zoom · click a room</div>
+  <div id="toasts" aria-live="polite"></div>
+</div>
+
+<!-- 3D library: three.js r128 (WebGL), from the cdnjs CDN -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<!-- App scripts: plain JavaScript, loaded in this order (data -> engine -> views -> UI) -->
+<script src="js/data/campus-data.js"></script>
+<script src="js/engine/graph.js"></script>
+<script src="js/engine/routing.js"></script>
+<script src="js/engine/hazards.js"></script>
+<script src="js/engine/planner.js"></script>
+<script src="js/engine/emergency-queue.js"></script>
+<script src="js/engine/drill.js"></script>
+<script src="js/views/scene3d-three.js"></script>
+<script src="js/views/map2d-svg.js"></script>
+<script src="js/ui/state-and-views.js"></script>
+<script src="js/ui/route-panel.js"></script>
+<script src="js/ui/alerts-panel.js"></script>
+<script src="js/ui/drill-panel.js"></script>
+<script src="js/ui/storage.js"></script>
+<script src="js/ui/help-panel.js"></script>
+<script src="js/ui/inspector.js"></script>
+<script src="js/ui/controller.js"></script>
+<script src="js/ui/main.js"></script>
+</body>
+</html>

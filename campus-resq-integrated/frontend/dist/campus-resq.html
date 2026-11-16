@@ -1,0 +1,2069 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Campus RESQ — Campus Map & Evacuation Command</title>
+<!-- Fonts: Google Fonts (Space Grotesk, JetBrains Mono) -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Campus RESQ · Colour tokens for dark (default) and light themes, base page styles */
+:root{
+  --bg:#070b14; --panel:rgba(11,17,31,.78); --panel-solid:#0d1426; --border:rgba(120,160,255,.2);
+  --text:#e8eeff; --muted:#8c99bd; --accent:#4de1ff; --accent2:#8b6cff; --good:#3ddc97; --warn:#ffb020; --bad:#ff4d6d;
+  --chip:rgba(120,160,255,.1); --scene-bg:#060912; --grid1:#27406f; --grid2:#111b34; --edge:#4a78c2; --label:#eaf0ff; --labelbg:rgba(8,13,26,.78);
+  --sans:"Space Grotesk",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; --mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  --map-grass:#0c1914; --map-tree:#173a2b; --map-tree-edge:#21503b; --map-road:#1b2436; --map-road-edge:#2c3956; --map-lane:#5b6b8f;
+  --map-building:#111a2c; --map-wall:#5a6d96; --map-corr:#22314f; --map-text:#e6ecff; --map-park:#151f33; --map-field:#143224; --map-path:#3c5a4c; --map-casing:#060912; --room-op:.32; --g-bg:#0b1222; --g-edge:#8fa3c7;
+  color-scheme:dark;
+  box-sizing:border-box; padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme:light){
+  :root:not([data-theme="dark"]){
+    --bg:#eef2fb; --panel:rgba(255,255,255,.82); --panel-solid:#ffffff; --border:rgba(40,70,140,.2);
+    --text:#0f1a33; --muted:#53628c; --accent:#0877c9; --accent2:#5b3fd6; --good:#0e9f6e; --warn:#b86e00; --bad:#d6254a;
+    --chip:rgba(40,70,140,.08); --scene-bg:#e8edfa; --grid1:#a9b9df; --grid2:#d3dcf2; --edge:#6a8bc6; --label:#0f1a33; --labelbg:rgba(255,255,255,.85);
+    --map-grass:#d9eacb; --map-tree:#a6cf8b; --map-tree-edge:#7fae64; --map-road:#ffffff; --map-road-edge:#c4cad6; --map-lane:#c9ced8;
+    --map-building:#f8f6f1; --map-wall:#8a909f; --map-corr:#e4e0d6; --map-text:#26304a; --map-park:#e9eaee; --map-field:#b9dd9f; --map-path:#b9a98a; --map-casing:#ffffff; --room-op:.45; --g-bg:#ffffff; --g-edge:#3b4a6b;
+    color-scheme:light;
+  }
+}
+:root[data-theme="light"]{
+    --map-grass:#d9eacb; --map-tree:#a6cf8b; --map-tree-edge:#7fae64; --map-road:#ffffff; --map-road-edge:#c4cad6; --map-lane:#c9ced8;
+    --map-building:#f8f6f1; --map-wall:#8a909f; --map-corr:#e4e0d6; --map-text:#26304a; --map-park:#e9eaee; --map-field:#b9dd9f; --map-path:#b9a98a; --map-casing:#ffffff; --room-op:.45; --g-bg:#ffffff; --g-edge:#3b4a6b;
+  --bg:#eef2fb; --panel:rgba(255,255,255,.82); --panel-solid:#ffffff; --border:rgba(40,70,140,.2);
+  --text:#0f1a33; --muted:#53628c; --accent:#0877c9; --accent2:#5b3fd6; --good:#0e9f6e; --warn:#b86e00; --bad:#d6254a;
+  --chip:rgba(40,70,140,.08); --scene-bg:#e8edfa; --grid1:#a9b9df; --grid2:#d3dcf2; --edge:#6a8bc6; --label:#0f1a33; --labelbg:rgba(255,255,255,.85);
+  color-scheme:light;
+}
+:root[data-theme="dark"]{ color-scheme:dark; }
+html{ scroll-padding-top:env(safe-area-inset-top,0px); height:100%; }
+*,*::before,*::after{ box-sizing:border-box; }
+body{ margin:0; height:100%; background:var(--bg); color:var(--text); font:14px/1.45 var(--sans); overflow:hidden; -webkit-font-smoothing:antialiased; }
+#app{ position:relative; width:100%; height:100%; overflow:hidden; }
+#gl{ position:absolute; inset:0; width:100%; height:100%; display:block; touch-action:none; outline:none; }
+button,select,input{ font:inherit; color:inherit; }
+button{ cursor:pointer; }
+.glass{ background:var(--panel); border:1px solid var(--border); backdrop-filter:blur(16px) saturate(140%); -webkit-backdrop-filter:blur(16px) saturate(140%); border-radius:16px; box-shadow:0 10px 40px rgba(0,0,0,.28); }
+
+/* Campus RESQ · Top bar, camera tool bar, side panel and tabs */
+/* top bar */
+#top{ position:absolute; left:12px; right:12px; top:12px; display:flex; align-items:center; gap:10px; pointer-events:none; z-index:5; }
+#brand{ display:flex; align-items:center; gap:10px; padding:8px 14px 8px 10px; pointer-events:auto; }
+#brand .logo{ width:30px; height:30px; border-radius:9px; display:grid; place-items:center; font-weight:700; background:linear-gradient(135deg,var(--accent),var(--accent2)); color:#04101c; box-shadow:0 0 18px color-mix(in srgb,var(--accent) 55%,transparent); }
+#brand b{ font-size:15px; letter-spacing:.2px; display:block; line-height:1.1; }
+#brand small{ color:var(--muted); font-size:11px; letter-spacing:.8px; text-transform:uppercase; }
+.chips{ display:flex; gap:8px; flex-wrap:wrap; pointer-events:auto; }
+.chip{ display:inline-flex; align-items:center; gap:7px; padding:7px 12px; border-radius:999px; font:600 12px var(--mono); }
+.dot{ width:8px; height:8px; border-radius:50%; background:var(--good); box-shadow:0 0 10px var(--good); }
+.chip.alert .dot{ background:var(--bad); box-shadow:0 0 12px var(--bad); animation:pulse 1s infinite; }
+.chip.alert{ color:var(--bad); }
+@keyframes pulse{ 50%{ opacity:.35; } }
+
+/* camera tools */
+#tools{ position:absolute; right:12px; top:68px; display:flex; flex-direction:column; gap:6px; padding:6px; z-index:5; }
+#tools button{ width:42px; height:42px; border-radius:11px; border:1px solid transparent; background:transparent; display:grid; place-items:center; font:600 11px var(--mono); color:var(--muted); }
+#tools button:hover{ background:var(--chip); color:var(--text); }
+#tools button.on{ color:var(--accent); background:var(--chip); border-color:var(--border); }
+#tools hr{ border:0; height:1px; background:var(--border); margin:2px 6px; }
+
+/* main panel */
+#panel{ position:absolute; left:12px; top:68px; bottom:12px; width:372px; display:flex; flex-direction:column; z-index:6; overflow:hidden; }
+#tabs{ display:flex; padding:6px; gap:4px; border-bottom:1px solid var(--border); }
+#tabs button{ flex:1; border:0; background:transparent; padding:9px 4px; border-radius:10px; color:var(--muted); font:600 12px var(--sans); position:relative; }
+#tabs button.on{ background:var(--chip); color:var(--text); box-shadow:inset 0 -2px 0 var(--accent); }
+#tabs .badge{ position:absolute; top:3px; right:6px; min-width:16px; height:16px; border-radius:8px; background:var(--bad); color:#fff; font:700 10px/16px var(--mono); padding:0 4px; }
+.tabbody{ display:none; padding:14px; overflow:auto; flex:1; overscroll-behavior:contain; }
+.tabbody.on{ display:block; }
+#collapse{ display:none; }
+h3{ margin:0 0 10px; font:600 11px var(--mono); letter-spacing:1.4px; text-transform:uppercase; color:var(--muted); }
+.field{ margin-bottom:12px; }
+.field > label{ display:flex; justify-content:space-between; font-size:12px; color:var(--muted); margin-bottom:5px; }
+select{ width:100%; padding:10px 12px; border-radius:11px; border:1px solid var(--border); background:var(--panel-solid); appearance:none; -webkit-appearance:none; background-image:linear-gradient(45deg,transparent 50%,var(--muted) 50%),linear-gradient(135deg,var(--muted) 50%,transparent 50%); background-position:calc(100% - 18px) 50%,calc(100% - 13px) 50%; background-size:5px 5px; background-repeat:no-repeat; }
+select:focus-visible,button:focus-visible,input:focus-visible{ outline:2px solid var(--accent); outline-offset:2px; }
+.row{ display:flex; gap:8px; align-items:flex-end; }
+.row > .field{ flex:1; margin-bottom:0; }
+.seg{ display:flex; background:var(--chip); border-radius:11px; padding:3px; gap:3px; }
+.seg button{ flex:1; border:0; background:transparent; padding:8px 4px; border-radius:8px; color:var(--muted); font:600 12px var(--sans); }
+.seg button.on{ background:var(--panel-solid); color:var(--text); box-shadow:0 1px 6px rgba(0,0,0,.25); }
+.btn{ border:1px solid var(--border); background:var(--chip); padding:10px 14px; border-radius:11px; font-weight:600; }
+.btn:hover{ border-color:var(--accent); }
+.btn.primary{ background:linear-gradient(135deg,var(--accent),var(--accent2)); color:#04101c; border-color:transparent; }
+.btn.danger{ background:color-mix(in srgb,var(--bad) 16%,transparent); border-color:color-mix(in srgb,var(--bad) 55%,transparent); color:var(--bad); }
+.btn.small{ padding:6px 10px; font-size:12px; border-radius:9px; }
+.btn.block{ width:100%; }
+.btns{ display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
+.btns .btn{ flex:1; }
+input[type=range]{ width:100%; accent-color:var(--accent); }
+.check{ display:flex; gap:10px; align-items:flex-start; padding:10px 12px; border-radius:11px; background:var(--chip); margin:4px 0 12px; font-size:13px; }
+.check input{ margin-top:3px; accent-color:var(--accent); }
+.check small{ display:block; color:var(--muted); font-size:11.5px; }
+.sliders{ display:grid; grid-template-columns:1fr; gap:6px; margin-bottom:12px; }
+.sl{ display:grid; grid-template-columns:74px 1fr 34px; gap:8px; align-items:center; font-size:12px; color:var(--muted); }
+.sl output{ font:600 12px var(--mono); color:var(--text); text-align:right; }
+
+/* Campus RESQ · Form controls, result cards, tables, alert queue, Help guide, overlays */
+/* results */
+.card{ border:1px solid var(--border); border-radius:13px; padding:12px; background:var(--chip); margin-top:12px; }
+.card.bad{ border-color:color-mix(in srgb,var(--bad) 60%,transparent); background:color-mix(in srgb,var(--bad) 10%,transparent); }
+.card h4{ margin:0 0 8px; font-size:13px; display:flex; align-items:center; gap:8px; }
+.swatch{ width:10px; height:10px; border-radius:3px; display:inline-block; }
+.stats{ display:grid; grid-template-columns:repeat(3,1fr); gap:6px; margin-bottom:10px; }
+.stat{ background:var(--panel-solid); border-radius:9px; padding:7px 9px; }
+.stat b{ display:block; font:600 15px var(--mono); }
+.stat span{ font-size:10.5px; color:var(--muted); text-transform:uppercase; letter-spacing:.6px; }
+.steps{ margin:0; padding:0; list-style:none; counter-reset:s; }
+.steps li{ counter-increment:s; display:flex; gap:9px; align-items:center; padding:4px 0; font-size:13px; }
+.steps li::before{ content:counter(s); width:20px; height:20px; border-radius:50%; background:var(--panel-solid); display:grid; place-items:center; font:600 10px var(--mono); color:var(--muted); flex:none; }
+.steps li.hot{ color:var(--bad); }
+.tag{ font:600 10px var(--mono); padding:2px 6px; border-radius:6px; background:var(--panel-solid); color:var(--muted); margin-left:auto; }
+.tag.bad{ color:var(--bad); } .tag.warn{ color:var(--warn); } .tag.good{ color:var(--good); }
+table{ width:100%; border-collapse:collapse; font-size:12px; }
+th,td{ padding:6px 4px; text-align:right; border-bottom:1px solid var(--border); }
+th:first-child,td:first-child{ text-align:left; }
+th{ color:var(--muted); font-weight:500; }
+td.win{ color:var(--good); font-weight:700; }
+.q{ list-style:none; margin:0; padding:0; display:grid; gap:8px; }
+.q li{ display:flex; align-items:center; gap:10px; padding:9px 10px; border-radius:11px; background:var(--chip); border:1px solid transparent; }
+.q li.next{ border-color:color-mix(in srgb,var(--bad) 60%,transparent); }
+.sev{ width:30px; height:30px; border-radius:9px; display:grid; place-items:center; font:700 13px var(--mono); color:#04101c; flex:none; }
+.q .meta{ flex:1; min-width:0; } .q .meta b{ display:block; font-size:13px; } .q .meta span{ font-size:11.5px; color:var(--muted); }
+.empty{ color:var(--muted); font-size:13px; padding:10px 2px; }
+.bar{ display:grid; grid-template-columns:96px 1fr 38px; gap:8px; align-items:center; font-size:12px; margin:5px 0; }
+.bar i{ display:block; height:8px; border-radius:4px; background:linear-gradient(90deg,var(--accent),var(--accent2)); }
+.bar .track{ background:var(--panel-solid); border-radius:4px; }
+.bar b{ font:600 11px var(--mono); text-align:right; }
+details{ margin-top:14px; font-size:12.5px; color:var(--muted); }
+details summary{ cursor:pointer; color:var(--text); font-weight:600; }
+details code{ font:12px var(--mono); background:var(--panel-solid); padding:2px 5px; border-radius:5px; color:var(--accent); }
+.note{ font-size:11.5px; color:var(--muted); margin-top:8px; }
+
+/* help / safety guide */
+.guide{ border-radius:14px; padding:14px; margin-top:14px; border:1px solid var(--border); background:var(--chip); }
+.guide .go{ font:700 18px/1.25 var(--sans); margin:2px 0 4px; }
+.guide .sub{ color:var(--muted); font-size:12.5px; margin:0 0 10px; }
+.band{ display:inline-flex; align-items:center; gap:6px; padding:4px 10px; border-radius:999px; font:700 11.5px var(--mono); letter-spacing:.3px; }
+.band i{ width:8px; height:8px; border-radius:50%; background:currentColor; }
+.band.b0{ color:var(--good); background:color-mix(in srgb,var(--good) 14%,transparent); }
+.band.b1{ color:#2f9e44; background:color-mix(in srgb,#2f9e44 14%,transparent); }
+.band.b2{ color:var(--warn); background:color-mix(in srgb,var(--warn) 16%,transparent); }
+.band.b3{ color:var(--bad); background:color-mix(in srgb,var(--bad) 14%,transparent); }
+.guide.danger{ border-color:color-mix(in srgb,var(--bad) 60%,transparent); background:color-mix(in srgb,var(--bad) 9%,transparent); }
+.advice{ margin:10px 0 0; padding:0; list-style:none; display:grid; gap:6px; }
+.advice li{ font-size:13px; padding-left:18px; position:relative; }
+.advice li::before{ content:"!"; position:absolute; left:0; top:0; width:13px; height:13px; border-radius:50%; background:var(--warn); color:#000; font:800 9px/13px var(--sans); text-align:center; }
+.why{ font-size:12.5px; margin:10px 0 0; padding:8px 10px; border-radius:10px; background:var(--panel-solid); }
+.btn.armed{ border-color:var(--accent); color:var(--accent); }
+
+/* overlays */
+#tip{ position:absolute; pointer-events:none; z-index:8; padding:8px 11px; border-radius:10px; font-size:12px; display:none; max-width:220px; }
+#tip b{ display:block; font-size:13px; } #tip span{ color:var(--muted); font:11px var(--mono); }
+#toasts{ position:absolute; left:50%; transform:translateX(-50%); bottom:18px; display:grid; gap:8px; z-index:9; pointer-events:none; width:min(92vw,440px); }
+.toast{ padding:10px 14px; border-radius:12px; font-size:13px; animation:in .25s ease; }
+.toast.bad{ border-color:var(--bad); } .toast.good{ border-color:var(--good); }
+@keyframes in{ from{ opacity:0; transform:translateY(8px); } }
+#hint{ position:absolute; right:68px; bottom:14px; font:11px var(--mono); color:var(--muted); z-index:4; text-align:right; pointer-events:none; }
+#nogl{ position:absolute; inset:0; display:grid; place-items:center; z-index:3; text-align:center; padding:20px; color:var(--muted); }
+#nogl[hidden]{ display:none; }
+
+/* Campus RESQ · View/floor switches, 2D campus map and graph (SVG) styles, legend */
+/* mode switch */
+#modeSeg{ pointer-events:auto; padding:4px; border-radius:12px; }
+#modeSeg button{ padding:6px 12px; white-space:nowrap; }
+#app.flat #gl{ display:none; }
+#app.flat .only3d, #app:not(.flat) .only2d{ display:none !important; }
+#app.modegraph #legend .lg-map, #app:not(.modegraph) #legend .lg-graph{ display:none; }
+#tools button{ font-size:12px; }
+#tZin,#tZout{ font:600 20px var(--sans) !important; }
+
+/* 2D campus map */
+.m2svg{ position:absolute; inset:0; width:100%; height:100%; display:none; touch-action:none; user-select:none; -webkit-user-select:none; cursor:grab; background:var(--map-grass); }
+.m2svg.active{ display:block; }
+#floorSeg[hidden], #legend .lgfloor[hidden]{ display:none !important; }
+#floorSeg{ pointer-events:auto; padding:4px; border-radius:12px; }
+#floorSeg button{ padding:6px 12px; white-space:nowrap; }
+.m2svg.graph{ background:var(--g-bg); }
+.m2svg:active{ cursor:grabbing; }
+.m2svg > g:not(.m2-rooms){ pointer-events:none; }
+.m2-grass{ fill:var(--map-grass); }
+.m2-tree{ fill:var(--map-tree); stroke:var(--map-tree-edge); stroke-width:.5; }
+.m2-road-edge{ fill:none; stroke:var(--map-road-edge); stroke-width:11; stroke-linejoin:round; }
+.m2-road{ fill:none; stroke:var(--map-road); stroke-width:9; stroke-linejoin:round; }
+.m2-lane{ fill:none; stroke:var(--map-lane); stroke-width:.45; stroke-dasharray:3 3; }
+.m2-gate{ fill:var(--map-building); stroke:var(--map-wall); stroke-width:.6; }
+.m2-gate-t{ fill:var(--map-text); font:700 2.8px var(--sans); text-anchor:middle; }
+.m2-label{ fill:var(--map-text); font:600 3.6px var(--sans); text-anchor:middle; opacity:.85; }
+.m2-park{ fill:var(--map-park); stroke:var(--map-road-edge); stroke-width:.6; }
+.m2-stripe{ stroke:var(--map-lane); stroke-width:.4; }
+.m2-park-t{ fill:#2f6fe4; font:800 5px var(--sans); text-anchor:middle; }
+.m2-field{ fill:var(--map-field); stroke:#fff; stroke-opacity:.85; stroke-width:.7; }
+.m2-field-l{ fill:none; stroke:#fff; stroke-opacity:.85; stroke-width:.6; }
+.m2-path{ fill:none; stroke:var(--map-path); stroke-width:2; stroke-dasharray:1.6 1.2; stroke-linecap:round; }
+.m2-asm{ fill:#16a36b; stroke:#fff; stroke-width:.7; }
+.m2-asm-t{ fill:#fff; font:800 3.6px var(--sans); text-anchor:middle; }
+.m2-small{ fill:var(--map-text); font:600 2.4px var(--sans); text-anchor:middle; opacity:.8; }
+.m2-title{ fill:var(--map-text); font:700 4px var(--sans); letter-spacing:.2px; }
+.m2-bld{ fill:var(--map-building); stroke:var(--map-wall); stroke-width:1.6; }
+.m2-corr{ stroke:var(--map-corr); stroke-width:3.6; stroke-linecap:round; }
+.m2-corr.blk{ stroke-dasharray:1.4 1.4; }
+.g-bg{ fill:var(--g-bg); }
+.m2-void{ fill:var(--map-grass); opacity:.8; }
+.m2svg.upper:not(.graph){ background:var(--g-bg); }
+.m2svg.upper .m2-bld{ stroke-width:2.2; }
+.m2-link rect{ fill:#8b6cff; }
+.m2-link text{ fill:#fff; font:700 1.6px var(--sans); }
+.m2-link.none rect{ fill:var(--map-building); stroke:var(--muted); stroke-width:.25; stroke-dasharray:.6 .5; }
+.m2-link.none text{ fill:var(--muted); }
+.m2-floorgo text{ fill:#fff; font:800 2.4px var(--sans); text-anchor:middle; }
+.m2-floorgo rect{ stroke:#fff; stroke-width:.4; }
+.steps li.floorchg{ font-weight:700; color:var(--accent); }
+.m2-corr.g-edge{ stroke:var(--g-edge); stroke-width:.75; stroke-linecap:round; }
+.room .rb.gnode{ fill-opacity:1; stroke:#3b4a6b; stroke-width:.7; }
+.room:hover .rb.gnode{ fill-opacity:.85; stroke-width:1.1; }
+.gnum{ fill:#16203a; font:800 4.4px var(--sans); text-anchor:middle; pointer-events:none; }
+.gname{ fill:var(--map-text); font:600 2.9px var(--sans); text-anchor:middle; paint-order:stroke; stroke:var(--g-bg); stroke-width:.7; }
+.room{ cursor:pointer; outline:none; }
+.room:focus-visible .rb{ stroke:var(--accent) !important; stroke-width:1.6 !important; }
+.room .rb{ fill-opacity:var(--room-op); stroke-width:.55; transition:fill-opacity .15s; }
+.room:hover .rb{ fill-opacity:.7; }
+.room.exit .rb{ fill-opacity:.75; }
+.room.junction .rb{ fill-opacity:.12; stroke-dasharray:1 1; }
+.room .rb.blocked{ stroke:#ff3b57; stroke-width:1.1; }
+.rl{ fill:var(--map-text); font-family:var(--sans); font-weight:600; text-anchor:middle; paint-order:stroke; stroke:var(--map-building); stroke-width:.3; stroke-opacity:.6; }
+.rl.ex{ font-weight:800; fill:#fff; stroke:#0b6b45; stroke-width:.25; letter-spacing:.2px; }
+.m2-w rect{ fill:var(--map-building); stroke:var(--map-wall); stroke-width:.3; }
+.m2-w text{ fill:var(--map-text); font:700 2px var(--mono); text-anchor:middle; }
+.ib{ fill:var(--map-building); stroke:var(--map-wall); stroke-width:.3; }
+.ib.ibx{ fill:#16a36b; stroke:#fff; }
+.ig{ fill:none; stroke:var(--map-text); stroke-width:.35; stroke-linecap:round; stroke-linejoin:round; }
+.igt{ fill:var(--map-text); font:800 1.5px var(--sans); text-anchor:middle; }
+.dot{ fill:#ffb020; stroke:#7a4a00; stroke-width:.25; }
+.agent{ stroke:#fff; stroke-width:.5; }
+.rcase{ fill:none; stroke:var(--map-casing); stroke-width:3.4; stroke-linecap:round; stroke-linejoin:round; opacity:.9; }
+.rline{ fill:none; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
+.rflow{ fill:none; stroke:#fff; stroke-width:.7; stroke-dasharray:1.4 3.2; stroke-linecap:round; animation:m2flow 1s linear infinite; }
+@keyframes m2flow{ to{ stroke-dashoffset:-4.6; } }
+.rdot{ stroke:#fff; stroke-width:.6; }
+.rsel{ fill:none; stroke:var(--accent); stroke-width:.8; stroke-dasharray:2 1.2; }
+.m2-pin text{ fill:#fff; font:800 3.2px var(--sans); text-anchor:middle; }
+.m2-sec-t{ fill:#fff; font:800 3.2px var(--sans); text-anchor:middle; }
+.flame{ transform-box:fill-box; transform-origin:50% 100%; animation:m2flick .45s ease-in-out infinite alternate; }
+@keyframes m2flick{ to{ transform:scale(1.08,1.2); } }
+.pulse{ fill:none; stroke-width:.6; transform-box:fill-box; transform-origin:center; animation:m2pulse 1.4s ease-out infinite; }
+@keyframes m2pulse{ from{ transform:scale(.75); opacity:1; } to{ transform:scale(1.9); opacity:0; } }
+#legend{ position:absolute; right:12px; bottom:36px; width:236px; padding:10px 12px; z-index:5; font-size:11.5px; }
+#legend summary{ cursor:pointer; font:600 11px var(--mono); letter-spacing:1px; text-transform:uppercase; color:var(--muted); display:flex; align-items:center; gap:6px; list-style:none; }
+#legend summary::-webkit-details-marker{ display:none; }
+#legend .lg{ display:grid; grid-template-columns:1fr 1fr; gap:5px 8px; margin-top:8px; }
+#legend .lg span{ display:flex; align-items:center; gap:6px; }
+#legend .lg i{ width:12px; height:9px; border-radius:2px; flex:none; opacity:.85; }
+#legend .lg i.lgl{ height:3px; border-radius:2px; }
+#legend .lg i.lgr{ width:9px; height:9px; border-radius:50%; }
+#legend .lg i.lgw{ width:auto; height:auto; padding:0 5px; border-radius:7px; border:1px solid var(--muted); font:700 9px var(--mono); font-style:normal; opacity:1; }
+#legend .lg i.lgh{ background:repeating-linear-gradient(45deg,#ff3b57 0 2px,transparent 2px 4px); border:1px solid #ff3b57; }
+#legend p{ margin:8px 0 0; color:var(--muted); font-size:10.5px; }
+
+/* Campus RESQ · Phone layout and reduced-motion preferences */
+@media (max-width:860px){
+  #legend{ display:none !important; }
+  #modeSeg button, #floorSeg button{ padding:5px 9px; }
+  #panel{ left:8px; right:8px; top:auto; bottom:8px; width:auto; height:min(52vh,470px); }
+  #panel.collapsed{ height:50px; } #panel.collapsed .tabbody{ display:none; }
+  #collapse{ display:grid; place-items:center; width:38px; border:0; background:transparent; color:var(--muted); font-size:16px; }
+  #tools{ top:auto; bottom:calc(min(52vh,470px) + 16px); right:8px; flex-direction:column; }
+  #chipNodes{ display:none; }
+  #tools button{ width:38px; height:38px; } #tools hr{ display:none; }
+  #hint{ display:none; }
+  #top{ left:8px; right:8px; top:8px; flex-wrap:wrap; }
+  #brand small{ display:none; }
+  #toasts{ bottom:calc(min(52vh,470px) + 18px); }
+}
+@media (prefers-reduced-motion:reduce){ .chip.alert .dot{ animation:none; } .toast{ animation:none; } .rflow,.flame,.pulse{ animation:none; } }
+</style>
+</head>
+<body>
+<div id="app">
+  <canvas id="gl" tabindex="0" aria-label="3D campus map"></canvas>
+  <div id="nogl" hidden><div><h2 style="color:var(--text);margin:0 0 6px">3D view unavailable</h2><p>WebGL could not start on this device or the 3D library failed to load.<br>All routing, alerts and drill tools below still work.</p></div></div>
+
+  <header id="top">
+    <div id="brand" class="glass"><div class="logo">R</div><div><b>Campus RESQ</b><small>Evacuation command</small></div></div>
+    <div class="chips">
+      <span class="chip glass" id="chipStatus"><i class="dot"></i><span id="statusTxt">ALL CLEAR</span></span>
+      <span class="chip glass" id="chipNodes">36 nodes · 60 links</span>
+      <div class="seg glass" id="modeSeg" role="group" aria-label="View"><button data-v="2d">Map</button><button data-v="graph">Graph</button><button data-v="3d">3D</button></div>
+      <div class="seg glass" id="floorSeg" role="group" aria-label="Floor"><button data-v="0">Ground</button><button data-v="1">First</button></div>
+    </div>
+  </header>
+
+  <div id="tools" class="glass" role="toolbar" aria-label="Camera tools">
+    <button id="tZin" class="only2d" title="Zoom in" aria-label="Zoom in">+</button>
+    <button id="tZout" class="only2d" title="Zoom out" aria-label="Zoom out">−</button>
+    <button id="tIso" class="on only3d" title="Isometric view">ISO</button>
+    <button id="tTop" class="only3d" title="Top-down view">TOP</button>
+    <button id="tSide" class="only3d" title="Side view">SIDE</button>
+    <hr>
+    <button id="tFrame" title="Frame current route">FIT</button>
+    <button id="tLabels" title="Cycle labels: key / all / off">LBL</button>
+    <button id="tSpin" class="only3d" title="Auto-rotate">SPIN</button>
+  </div>
+
+  <aside id="panel" class="glass">
+    <div style="display:flex;align-items:center">
+      <nav id="tabs" style="flex:1" role="tablist">
+        <button data-tab="help" class="on" role="tab">Help</button>
+        <button data-tab="route" role="tab">Route</button>
+        <button data-tab="alerts" role="tab">Alerts<span class="badge" id="badge" hidden>0</span></button>
+        <button data-tab="drill" role="tab">Drill</button>
+        <button data-tab="node" role="tab">Inspect</button>
+      </nav>
+      <button id="collapse" aria-label="Collapse panel">▾</button>
+    </div>
+
+    <section class="tabbody on" id="tab-help">
+      <h3>Get to safety</h3>
+      <div class="field"><label for="hYou">1. Where are you?</label>
+        <div class="row"><div class="field"><select id="hYou"></select></div><button class="btn small" id="hPickYou" title="Tap your room on the map">Pick on map</button></div></div>
+      <div class="field"><label>2. What is happening?</label>
+        <div class="seg" id="hType"><button data-v="fire" class="on">Fire</button><button data-v="security">Security threat</button><button data-v="medical">Medical</button></div></div>
+      <div class="field"><label for="hAt">3. Where is it?</label>
+        <div class="row"><div class="field"><select id="hAt"></select></div><button class="btn small" id="hPickAt" title="Tap the room on the map">Pick on map</button></div></div>
+      <button class="btn primary block" id="hGo" style="padding:13px;font-size:15px">Show my safest path</button>
+      <div id="helpOut"></div>
+      <p class="note">In any emergency, call 112. This guide reports the emergency to the command view and plans a path from the information entered; follow staff and emergency services if they tell you otherwise.</p>
+    </section>
+
+    <section class="tabbody" id="tab-route">
+      <h3>Find a safe route</h3>
+      <div class="row">
+        <div class="field"><label for="selFrom">From</label><select id="selFrom"></select></div>
+        <button class="btn small" id="btnSwap" title="Swap" aria-label="Swap from and to" style="margin-bottom:2px">⇄</button>
+      </div>
+      <div class="field" style="margin-top:12px"><label for="selTo">To</label><select id="selTo"></select></div>
+      <div class="field"><label>Algorithm</label>
+        <div class="seg" id="algoSeg"><button data-v="dijkstra" class="on">Dijkstra</button><button data-v="bfs">BFS</button><button data-v="compare">Compare</button></div>
+      </div>
+      <label class="check"><input type="checkbox" id="chkEvac"><span>Evacuation profile<small>Risk-heavy weights (β = 5), the backend’s evacuation setting.</small></span></label>
+      <details open style="margin:0 0 12px"><summary>Cost weights</summary>
+        <div class="sliders" style="margin-top:10px">
+          <div class="sl"><span>α distance</span><input type="range" id="sa" min="0" max="5" step="0.1" value="1"><output id="oa">1.0</output></div>
+          <div class="sl"><span>β risk</span><input type="range" id="sb" min="0" max="10" step="0.1" value="2"><output id="ob">2.0</output></div>
+        </div>
+      </details>
+      <div id="routeOut"></div>
+      <details><summary>How routing works</summary>
+        <p>Step cost = <code>α·distance + β·risk</code>, charged on the room being entered (the backend passes congestion as 0). Blocked rooms are skipped. Dijkstra minimises that cost; BFS minimises hops and reports distance as its cost.</p>
+        <p class="note">Exits are the rooms whose name contains “Exit” (backend rule): Exit, Exit 4, Exit, Exit. Corridor weights come from <code>ground.h</code> (1 unit = 10 m). Room positions are schematic.</p>
+      </details>
+    </section>
+
+    <section class="tabbody" id="tab-alerts">
+      <h3>Report an emergency</h3>
+      <div class="field"><label>Type</label>
+        <div class="seg" id="typeSeg"><button data-v="fire" class="on">Fire</button><button data-v="medical">Medical</button><button data-v="security">Security</button></div>
+      </div>
+      <div class="field"><label for="selLoc">Location</label><select id="selLoc"></select></div>
+      <div class="field"><label for="sev">Severity <b id="sevOut" style="color:var(--text);font-family:var(--mono)">6</b></label><input type="range" id="sev" min="1" max="10" step="1" value="6"></div>
+      <button class="btn primary block" id="btnReport">Report emergency</button>
+      <h3 style="margin-top:20px">Priority queue</h3>
+      <ul class="q" id="queue"></ul>
+      <div class="btns"><button class="btn danger" id="btnDispatch">Dispatch next</button><button class="btn" id="btnClearAlerts">Clear all</button></div>
+      <h3 style="margin-top:20px">Active response</h3>
+      <div id="responseOut"><p class="empty">Nothing dispatched yet.</p></div>
+      <p class="note">Fire and security block their room and spread risk to nearby rooms (×0.6 and ×0.5 per hop); risk from several incidents adds up. Medical adds no hazard. The queue is the backend’s priority queue: highest severity first; equal severities are not first-come-first-served.</p>
+    </section>
+
+    <section class="tabbody" id="tab-drill">
+      <h3>Evacuation plan</h3>
+      <p class="note" style="margin-top:0">Every room sends its occupants to the exit the backend picks for it (Dijkstra, evacuation weights). The backend has no crowd model, so routes do not adapt to each other.</p>
+      <div class="btns" style="margin-top:0"><button class="btn primary" id="btnDrill">Run drill</button></div>
+      <div id="drillOut"></div>
+    </section>
+
+    <section class="tabbody" id="tab-node">
+      <h3>Inspect a room</h3>
+      <div id="nodeOut"></div>
+    </section>
+  </aside>
+
+  <details id="legend" class="glass only2d" open>
+    <summary><svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true"><path d="M10 2 L14 16 L10 13 L6 16 Z" fill="var(--bad)"/></svg> N · Legend</summary>
+    <div class="lg lg-graph">
+      <span><i class="lgr" style="background:#7bc47f"></i>Entrance / Exit</span><span><i class="lgr" style="background:#f2cf66"></i>Office / Hall / Room</span>
+      <span><i class="lgr" style="background:#7fb2e6"></i>Classroom</span><span><i class="lgr" style="background:#c39bd9"></i>Lab</span>
+      <span><i class="lgr" style="background:#f0a35e"></i>Stairs / Lift</span><span><i class="lgr" style="background:#bdbdbd"></i>Toilet</span>
+      <span><i class="lgr" style="background:#fff;border:1px solid #3b4a6b"></i>Junction</span><span><i class="lgw">3</i>Edge weight (1 = 10 m)</span>
+      <span><i class="lgl" style="background:#4de1ff"></i>Route</span><span><i class="lgl" style="background:#16c784"></i>Your safest path</span>
+      <span><i class="lgr" style="background:#ff6a1a"></i>Fire</span><span><i class="lgh"></i>Blocked</span>
+      <span class="lgfloor"><i class="lgw" style="background:#8b6cff;color:#fff;border-color:#8b6cff">↓ G</i>Stairs/lift to another floor</span><span class="lgfloor"><i class="lgw" style="opacity:.6">not linked</i>Stairs not connected yet</span>
+    </div>
+    <div class="lg lg-map">
+      <span><i style="background:#ffd166"></i>Hall</span><span><i style="background:#5ec8ff"></i>Classroom</span>
+      <span><i style="background:#ff9f5e"></i>Lab</span><span><i style="background:#6ee7d7"></i>Office</span>
+      <span><i style="background:#b08cff"></i>Toilet</span><span><i style="background:#7aa2ff"></i>Stairs</span>
+      <span><i style="background:#8a94ad"></i>Lift</span><span><i style="background:#3ddc97"></i>Exit</span>
+      <span><i class="lgl" style="background:#4de1ff"></i>Route</span><span><i class="lgl" style="background:#ffb020"></i>BFS / responders</span>
+      <span><i class="lgr" style="background:#ff6a1a"></i>Fire</span><span><i class="lgr" style="background:#4da6ff"></i>Medical</span>
+      <span><i class="lgr" style="background:#8b5cf6"></i>Security</span>
+      <span><i class="lgw">3</i>Corridor weight (1 = 10 m)</span><span><i class="lgh"></i>Blocked</span><span><i class="lgr" style="background:#16a36b"></i>Assembly point</span>
+      <span class="lgfloor"><i class="lgw" style="background:#8b6cff;color:#fff;border-color:#8b6cff">↓ G</i>Stairs/lift to another floor</span><span class="lgfloor"><i class="lgw" style="opacity:.6">not linked</i>Stairs not connected yet</span>
+    </div>
+    <p>Schematic layout · not to scale</p>
+  </details>
+  <div id="tip" class="glass"></div>
+  <div id="hint">drag orbit · right-drag pan · scroll zoom · click a room</div>
+  <div id="toasts" aria-live="polite"></div>
+</div>
+
+<!-- 3D library: three.js r128 (WebGL), from the cdnjs CDN -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(function(){
+// GENERATED by tools/build_frontend.py from frontend/data/*.json. Do not edit by hand.
+// GRAPH: rooms (with display type) and corridors in metres, for drawing.
+// BACKEND: the C++ backend's own export (weights in units, neighbour order, exits), for routing.
+const GRAPH = {"metresPerUnit":10,"nodes":[{"id":1,"name":"Main Entrance","type":"HALL","floor":0},{"id":2,"name":"Admission Enquiry","type":"OFFICE","floor":0},{"id":3,"name":"Library","type":"HALL","floor":0},{"id":4,"name":"Exit","type":"EXIT","floor":0},{"id":5,"name":"MI Room","type":"ROOM","floor":0},{"id":6,"name":"Female Staff Toilet","type":"TOILET","floor":0},{"id":7,"name":"Seminar Hall","type":"HALL","floor":0},{"id":8,"name":"Collaboration Center","type":"HALL","floor":0},{"id":9,"name":"Junction","type":"JUNCTION","floor":0},{"id":10,"name":"Class 007","type":"CLASS","floor":0},{"id":11,"name":"Staff Room 1","type":"OFFICE","floor":0},{"id":12,"name":"Research Department","type":"OFFICE","floor":0},{"id":13,"name":"Stairs","type":"STAIRS","floor":0},{"id":14,"name":"Girls Lift","type":"LIFT","floor":0},{"id":15,"name":"Boys Lift","type":"LIFT","floor":0},{"id":16,"name":"Lab 10","type":"LAB","floor":0},{"id":17,"name":"Handicap Toilet","type":"TOILET","floor":0},{"id":18,"name":"Girls Toilet","type":"TOILET","floor":0},{"id":19,"name":"Exit 4","type":"EXIT","floor":0},{"id":20,"name":"Class 016","type":"CLASS","floor":0},{"id":21,"name":"Class 015","type":"CLASS","floor":0},{"id":22,"name":"Class 014","type":"CLASS","floor":0},{"id":23,"name":"Class 013","type":"CLASS","floor":0},{"id":24,"name":"Exit","type":"EXIT","floor":0},{"id":25,"name":"Guest/Staff Toilet","type":"TOILET","floor":0},{"id":26,"name":"Boys Toilet","type":"TOILET","floor":0},{"id":27,"name":"Lab 1","type":"LAB","floor":0},{"id":28,"name":"Back Audi","type":"HALL","floor":0},{"id":29,"name":"Meeting Hall","type":"HALL","floor":0},{"id":30,"name":"Placement / Alumni Helpdesk","type":"OFFICE","floor":0},{"id":31,"name":"Boys Toilet","type":"TOILET","floor":0},{"id":32,"name":"Guest Toilet","type":"TOILET","floor":0},{"id":33,"name":"Stairs","type":"STAIRS","floor":0},{"id":34,"name":"Open Audi","type":"HALL","floor":0},{"id":35,"name":"Stairs","type":"STAIRS","floor":0},{"id":36,"name":"Exit","type":"EXIT","floor":0}],"edges":[[1,35,20],[1,2,30],[1,33,20],[1,34,50],[2,35,20],[2,3,20],[2,34,60],[3,4,10],[3,5,10],[4,5,10],[5,6,10],[6,7,40],[6,34,90],[7,8,30],[7,34,80],[8,9,30],[8,34,40],[9,10,20],[9,11,20],[9,12,30],[9,13,20],[9,14,30],[9,34,60],[10,12,20],[10,29,30],[10,34,70],[11,14,10],[12,15,10],[14,16,20],[14,28,30],[15,27,20],[16,17,20],[16,20,20],[17,18,10],[17,19,20],[17,20,10],[18,19,10],[18,20,30],[19,20,30],[20,21,20],[21,22,10],[21,28,20],[22,23,20],[22,28,20],[23,24,10],[23,25,10],[23,27,10],[23,28,30],[24,26,10],[25,26,10],[27,28,30],[29,30,50],[29,32,40],[29,34,80],[30,31,20],[30,32,30],[30,33,10],[30,34,70],[30,36,130],[31,32,20],[33,34,60]]};
+const BACKEND = {"metresPerUnit":10,"exits":[4,19,24,36],"nodes":[{"id":1,"name":"Main Entrance","adj":[[35,2],[2,3],[33,2],[34,5]]},{"id":2,"name":"Admission Enquiry","adj":[[1,3],[35,2],[3,2],[34,6]]},{"id":3,"name":"Library","adj":[[2,2],[4,1],[5,1]]},{"id":4,"name":"Exit","adj":[[3,1],[5,1]]},{"id":5,"name":"MI Room","adj":[[3,1],[4,1],[6,1]]},{"id":6,"name":"Female Staff Toilet","adj":[[5,1],[7,4],[34,9]]},{"id":7,"name":"Seminar Hall","adj":[[6,4],[8,3],[34,8]]},{"id":8,"name":"Collaboration Center","adj":[[7,3],[9,3],[34,4]]},{"id":9,"name":"Junction","adj":[[8,3],[10,2],[11,2],[12,3],[13,2],[14,3],[34,6]]},{"id":10,"name":"Class 007","adj":[[9,2],[12,2],[29,3],[34,7]]},{"id":11,"name":"Staff Room 1","adj":[[9,2],[14,1]]},{"id":12,"name":"Research Department","adj":[[9,3],[10,2],[15,1]]},{"id":13,"name":"Stairs","adj":[[9,2]]},{"id":14,"name":"Girls Lift","adj":[[9,3],[11,1],[16,2],[28,3]]},{"id":15,"name":"Boys Lift","adj":[[12,1],[27,2]]},{"id":16,"name":"Lab 10","adj":[[14,2],[17,2],[20,2]]},{"id":17,"name":"Handicap Toilet","adj":[[16,2],[18,1],[19,2],[20,1]]},{"id":18,"name":"Girls Toilet","adj":[[17,1],[19,1],[20,3]]},{"id":19,"name":"Exit 4","adj":[[17,2],[18,1],[20,3]]},{"id":20,"name":"Class 016","adj":[[16,2],[17,1],[18,3],[19,3],[21,2]]},{"id":21,"name":"Class 015","adj":[[20,2],[22,1],[28,2]]},{"id":22,"name":"Class 014","adj":[[21,1],[23,2],[28,2]]},{"id":23,"name":"Class 013","adj":[[22,2],[24,1],[25,1],[27,1],[28,3]]},{"id":24,"name":"Exit","adj":[[23,1],[26,1]]},{"id":25,"name":"Guest/Staff Toilet","adj":[[23,1],[26,1]]},{"id":26,"name":"Boys Toilet","adj":[[24,1],[25,1]]},{"id":27,"name":"Lab 1","adj":[[15,2],[23,1],[28,3]]},{"id":28,"name":"Back Audi","adj":[[14,3],[21,2],[22,2],[23,3],[27,3]]},{"id":29,"name":"Meeting Hall","adj":[[10,3],[30,5],[32,4],[34,8]]},{"id":30,"name":"Placement / Alumni Helpdesk","adj":[[29,5],[31,2],[32,3],[33,1],[34,7],[36,13]]},{"id":31,"name":"Boys Toilet","adj":[[30,2],[32,2]]},{"id":32,"name":"Guest Toilet","adj":[[29,4],[30,3],[31,2]]},{"id":33,"name":"Stairs","adj":[[1,2],[30,1],[34,6]]},{"id":34,"name":"Open Audi","adj":[[1,5],[2,6],[6,9],[7,8],[8,4],[9,6],[10,7],[29,8],[30,7],[33,6]]},{"id":35,"name":"Stairs","adj":[[1,2],[2,2]]},{"id":36,"name":"Exit","adj":[[30,13]]}]};
+
+// Campus RESQ engine · Graph model built from the backend export: rooms, ordered adjacency, exits, helpers (CampusGraph)
+// Mirrors the C++ backend line by line; verified by `make test`.
+"use strict";
+const U = BACKEND.metresPerUnit;                       // backend weights are units; the UI shows metres
+
+const nodeById = new Map(GRAPH.nodes.map(n => [n.id, Object.assign({}, n, {
+  risk: 0, congestion: 0, blocked: false, manualRisk: 0, manualCong: 0, manualBlocked: false
+})]));
+const ADJ = new Map(BACKEND.nodes.map(n => [n.id, n.adj.map(([to, w]) => ({ to, wu: w }))]));   // backend order, units
+const adj = new Map(BACKEND.nodes.map(n => [n.id, n.adj.map(([to, w]) => ({ to, w: w * U }))])); // metres, for display
+const EXIT_IDS = BACKEND.exits.slice();                 // CampusGraph::getExitIds(): names containing "Exit"
+const isExit = n => EXIT_IDS.includes(n.id);
+const exitIds = () => EXIT_IDS.slice();
+const isLift = n => n.type === "LIFT";
+const isLiftRide = () => false;                         // the backend has no lift rule
+const floorOf = id => nodeById.get(id).floor || 0;
+const FLOOR_NAME = ["Ground floor", "First floor"], FLOOR_SHORT = ["G", "1F"];
+const FLOORS = [...new Set(GRAPH.nodes.map(n => n.floor || 0))].sort();
+const level = v => (!(v > 0) ? 0 : v > 10 ? 10 : v);    // UI input sanitising only (sliders, saved data)
+
+class Heap {                                            // binary heap, `less(a,b)` => a comes out first
+  constructor(less) { this.a = []; this.less = less; }
+  get size() { return this.a.length; }
+  push(v) { const a = this.a; a.push(v); let i = a.length - 1;
+    while (i > 0) { const p = (i - 1) >> 1; if (!this.less(a[i], a[p])) break; [a[i], a[p]] = [a[p], a[i]]; i = p; } }
+  pop() { const a = this.a; if (!a.length) return undefined; const top = a[0], last = a.pop();
+    if (a.length) { a[0] = last; let i = 0;
+      for (;;) { let l = 2 * i + 1, r = l + 1, m = i;
+        if (l < a.length && this.less(a[l], a[m])) m = l; if (r < a.length && this.less(a[r], a[m])) m = r;
+        if (m === i) break; [a[i], a[m]] = [a[m], a[i]]; i = m; } }
+    return top; }
+}
+
+// Campus RESQ engine · Route summaries, Dijkstra, BFS and best exit (DijkstraRoute, BFSRoute, findBestExit)
+// Mirrors the C++ backend line by line; verified by `make test`.
+"use strict";
+// Route summary exactly like the backend: distance = sum of edge weights (first matching edge in
+// adjacency order), risk = sum over path[1..] (start room not counted), congestion always 0.
+function summarise(path, cost) {
+  let units = 0, risk = 0;
+  for (let i = 0; i < path.length - 1; i++) {
+    risk += nodeById.get(path[i + 1]).risk;
+    const e = ADJ.get(path[i]).find(x => x.to === path[i + 1]); units += e.wu;
+  }
+  return { path, units, distance: units * U, risk, congestion: 0, cost, hops: path.length - 1 };
+}
+function rebuild(parent, src, dst) { const path = []; let c = dst; while (c !== src) { path.push(c); c = parent.get(c); } path.push(src); return path.reverse(); }
+
+// DijkstraRoute::findRoute — min-heap on (cost, node id); step cost = a*w + b*risk + g*0.
+function dijkstra(src, dst, o) {
+  o = Object.assign({ a: 1, b: 2, g: 1.5 }, o);
+  const s = nodeById.get(src), d = nodeById.get(dst);
+  if (!s || !d) return null;
+  if (d.blocked && src !== dst) return null;
+  const dist = new Map([[src, 0]]), parent = new Map();
+  const pq = new Heap((x, y) => x[0] < y[0] || (x[0] === y[0] && x[1] < y[1])); pq.push([0, src]);
+  while (pq.size) {
+    const [cc, cur] = pq.pop();
+    if (cc > dist.get(cur)) continue;
+    if (cur === dst) break;
+    for (const e of ADJ.get(cur) || []) {
+      const v = nodeById.get(e.to); if (!v || v.blocked) continue;
+      const nc = cc + (o.a * e.wu + o.b * v.risk + o.g * 0);
+      if (!dist.has(e.to) || nc < dist.get(e.to)) { dist.set(e.to, nc); parent.set(e.to, cur); pq.push([nc, e.to]); }
+    }
+  }
+  if (!dist.has(dst)) return null;
+  return summarise(rebuild(parent, src, dst), dist.get(dst));
+}
+
+// BFSRoute::findRoute — fewest hops; total cost = distance.
+function bfs(src, dst) {
+  const s = nodeById.get(src), d = nodeById.get(dst);
+  if (!s || !d) return null;
+  if (d.blocked && src !== dst) return null;
+  const q = [src], visited = new Set([src]), parent = new Map();
+  for (let i = 0; i < q.length; i++) {
+    const cur = q[i]; if (cur === dst) break;
+    for (const e of ADJ.get(cur) || []) {
+      const v = nodeById.get(e.to);
+      if (v && !v.blocked && !visited.has(e.to)) { visited.add(e.to); parent.set(e.to, cur); q.push(e.to); }
+    }
+  }
+  if (!visited.has(dst)) return null;
+  const r = summarise(rebuild(parent, src, dst), 0); r.cost = r.units; return r;
+}
+
+// findBestExit — exits in backend order, strictly lower cost wins
+function bestExit(fn, src) {
+  let best = null;
+  for (const id of EXIT_IDS) { const r = fn(src, id); if (r && (!best || r.cost < best.cost)) best = r; }
+  return best;
+}
+
+// Campus RESQ engine · Incident hazards: risk spread and blocked rooms (spreadRisk, applyEmergencyHazard)
+// Mirrors the C++ backend line by line; verified by `make test`.
+"use strict";
+// CampusGraph::spreadRisk — breadth-first by level, risk ADDED (+=), value * decay per hop
+function spread(origin, intensity, decay, maxHops) {
+  if (!nodeById.has(origin)) return;
+  let q = [[origin, intensity]]; const visited = new Set([origin]); let lvl = 0;
+  while (q.length && lvl <= maxHops) {
+    const next = [];
+    for (const [cur, val] of q) {
+      const n = nodeById.get(cur); if (n) n.risk += val;
+      for (const e of ADJ.get(cur) || []) if (!visited.has(e.to)) { visited.add(e.to); next.push([e.to, val * decay]); }
+    }
+    q = next; lvl++;
+  }
+}
+// applyEmergencyHazard for every active emergency, in report order, on top of the manual state
+let ACTIVE = [];
+function applyHazards(emergencies) {
+  ACTIVE = emergencies;
+  nodeById.forEach(n => { n.risk = n.manualRisk; n.blocked = n.manualBlocked; n.congestion = 0; });
+  for (const e of emergencies) {
+    if (e.status === "RESOLVED" || !nodeById.has(e.loc)) continue;
+    if (e.type === "fire") { nodeById.get(e.loc).blocked = true; spread(e.loc, e.sev, 0.6, 4); }
+    else if (e.type === "security") { nodeById.get(e.loc).blocked = true; spread(e.loc, e.sev, 0.5, 3); }
+  }
+}
+function syncState() { applyHazards(ACTIVE); }
+
+// Campus RESQ engine · Response plans and the personal safest-path guide (planResponse, guidePerson)
+// Mirrors the C++ backend line by line; verified by `make test`.
+"use strict";
+const EVAC = { a: 1, b: 5, g: 1.5 }, RESPONDER = { a: 1, b: 2, g: 1.5 };
+const MAIN_ENTRANCE = 1;                                // only used to draw the main gate on the map
+
+// planResponse
+function makePlan(e) {
+  const scene = nodeById.get(e.loc);
+  const plan = { scene: e.loc, staging: e.loc, entry: null, staged: false, medical: e.type === "medical",
+                 evac: bestExit((s, d) => dijkstra(s, d, EVAC), e.loc), responder: null };
+  if (!scene || e.type === "fire") return plan;
+  const targets = !scene.blocked ? [e.loc] : ADJ.get(e.loc).map(x => x.to).filter(id => nodeById.get(id) && !nodeById.get(id).blocked);
+  for (const t of targets)
+    for (const door of EXIT_IDS) {
+      if (nodeById.get(door).blocked) continue;
+      const r = dijkstra(door, t, RESPONDER);
+      if (r && (!plan.responder || r.cost < plan.responder.cost)) { plan.responder = r; plan.staging = t; }
+    }
+  if (plan.responder) plan.entry = plan.responder.path[0];
+  plan.staged = scene.blocked && !!plan.responder;
+  return plan;
+}
+
+// safetyBand / routeBand (start room included, as in the backend) / guidePerson
+const BAND_NAME = ["Safe", "Low risk", "Medium risk", "High risk"];
+const safetyBand = r => (r < 1 ? 0 : r < 3 ? 1 : r < 6 ? 2 : 3);
+const routeBand = r => (r ? Math.max(0, ...r.path.map(id => safetyBand(nodeById.get(id).risk))) : -1);
+function findSafestRoute(src, targets, o) {             // the backend's version: lowest Dijkstra cost
+  let best = null;
+  for (const t of targets) { const r = dijkstra(src, t, o); if (r && (!best || r.cost < best.cost)) best = r; }
+  return best;
+}
+function guidePerson(you, type, at) {
+  const empty = { route: null, band: -1, destination: null, shortest: null, shortestBand: -1 };
+  if (!nodeById.has(you) || !nodeById.has(at)) return empty;
+  const medical = type === "medical";
+  const targets = medical ? [at] : exitIds();
+  const route = findSafestRoute(you, targets, medical ? { a: 1, b: 2, g: 1.5 } : { a: 1, b: 5, g: 1.5 });
+  let shortest = null;
+  for (const t of targets) { const r = dijkstra(you, t, { a: 1, b: 0, g: 0 }); if (r && (!shortest || r.cost < shortest.cost)) shortest = r; }
+  return { route, band: routeBand(route), destination: route ? route.path[route.path.length - 1] : null, shortest, shortestBand: routeBand(shortest) };
+}
+
+// Campus RESQ engine · Alert queue with the same order as std::priority_queue (EmergencyManager)
+// Mirrors the C++ backend line by line; verified by `make test`.
+"use strict";
+// EmergencyManager: std::priority_queue<Emergency*, vector, comp(a,b) = a.sev < b.sev>, using the same
+// heap algorithm as libstdc++ (push_heap / pop_heap), so equal severities come out in the same order.
+class StdPriorityQueue {
+  constructor() { this.c = []; }
+  static less(a, b) { return a.sev < b.sev; }
+  get size() { return this.c.length; }
+  top() { return this.c[0]; }
+  _pushHeap(c, hole, topIndex, value) {
+    let parent = Math.trunc((hole - 1) / 2);
+    while (hole > topIndex && StdPriorityQueue.less(c[parent], value)) { c[hole] = c[parent]; hole = parent; parent = Math.trunc((hole - 1) / 2); }
+    c[hole] = value;
+  }
+  push(x) { this.c.push(x); this._pushHeap(this.c, this.c.length - 1, 0, x); }
+  pop() {
+    const c = this.c; if (!c.length) return undefined;
+    const top = c[0];
+    if (c.length > 1) {
+      const len = c.length - 1, value = c[len]; c[len] = c[0];
+      let hole = 0, second = 0;
+      while (second < Math.trunc((len - 1) / 2)) {
+        second = 2 * (second + 1);
+        if (StdPriorityQueue.less(c[second], c[second - 1])) second--;
+        c[hole] = c[second]; hole = second;
+      }
+      if ((len & 1) === 0 && second === Math.trunc((len - 2) / 2)) { second = 2 * (second + 1); c[hole] = c[second - 1]; hole = second - 1; }
+      this._pushHeap(c, hole, 0, value);
+    }
+    c.pop();
+    return top;
+  }
+  order() { const q = new StdPriorityQueue(); q.c = this.c.slice(); const out = []; while (q.size) out.push(q.pop()); return out; }
+}
+
+// Campus RESQ engine · Evacuation plan for every room (drill)
+// Mirrors the C++ backend line by line; verified by `make test`.
+"use strict";
+// Evacuation plan for every room (the backend has no congestion, so no crowd feedback)
+const OCC = { CLASS: 40, LAB: 30, HALL: 50, OFFICE: 8, ROOM: 5, TOILET: 3 };
+const WALK = 1.4, FLOW = 1.5;                           // m/s walking, persons/s through a doorway (illustrative)
+function planDrill() {
+  const groups = GRAPH.nodes.filter(n => OCC[n.type]).map(n => ({ id: n.id, name: n.name, people: OCC[n.type] }))
+    .sort((a, b) => b.people - a.people || a.id - b.id);
+  const transit = new Map(), exitLoad = new Map(), rows = []; let stranded = 0;
+  for (const g of groups) {
+    const r = bestExit((s, d) => dijkstra(s, d, EVAC), g.id);
+    if (!r) { stranded += g.people; continue; }
+    r.path.slice(1).forEach(id => transit.set(id, (transit.get(id) || 0) + g.people));
+    const ex = r.path[r.path.length - 1];
+    exitLoad.set(ex, (exitLoad.get(ex) || 0) + g.people);
+    rows.push({ g, route: r, exit: ex });
+  }
+  let est = 0, distSum = 0;
+  for (const row of rows) {
+    const delay = Math.max(0, ...row.route.path.slice(1).map(id => (transit.get(id) || 0) / FLOW));
+    row.time = row.route.distance / WALK + delay; est = Math.max(est, row.time); distSum += row.route.distance;
+  }
+  return { rows, stranded, exitLoad, est, peakExit: Math.max(0, ...exitLoad.values()), peakTransit: Math.max(0, ...transit.values()),
+           avgDist: rows.length ? distSum / rows.length : 0, exitsUsed: exitLoad.size };
+}
+
+// Campus RESQ · 3D campus view, built with three.js (WebGL)
+"use strict";
+/* ===================== 3D VIEW (three.js r128) ===================== */
+const S = 1.5;                                          // layout metres -> world units
+const ROOMS = {"1":[-76.0,10.1,18.6,9.3],"2":[-72.7,25.6,17.05,12.4],"3":[-79.6,47.9,27.900000000000002,21.7],"4":[-87.2,67.4,10.85,7.75],"5":[-69.0,69.9,15.5,12.4],"6":[-53.9,32.1,10.85,9.3],"7":[-40.8,55.6,31.0,20.150000000000002],"8":[-27.9,29.6,31.0,21.7],"9":[-7.5,5.6,10.85,10.85],"10":[-4.0,-12.2,20.150000000000002,15.5],"11":[12.1,6.5,17.05,12.4],"12":[19.2,-10.5,17.05,12.4],"13":[-0.9,24.3,9.3,13.950000000000001],"14":[32.2,5.3,9.3,9.3],"15":[20.7,-26.0,9.3,9.3],"16":[55.4,11.6,23.25,17.05],"17":[82.1,29.6,10.85,9.3],"18":[103.2,12.9,10.85,9.3],"19":[97.5,28.8,10.85,7.75],"20":[82.5,12.5,20.150000000000002,15.5],"21":[81.8,-7.8,20.150000000000002,15.5],"22":[81.3,-28.3,20.150000000000002,15.5],"23":[70.6,-48.4,20.150000000000002,15.5],"24":[91.2,-47.2,10.85,7.75],"25":[79.0,-66.1,10.85,9.3],"26":[94.3,-61.3,10.85,9.3],"27":[44.1,-39.2,23.25,17.05],"28":[49.4,-14.8,34.1,21.7],"29":[-42.7,-36.0,31.0,21.7],"30":[-89.3,-5.4,17.05,12.4],"31":[-83.7,-33.5,10.85,9.3],"32":[-68.2,-30.1,10.85,9.3],"33":[-71.4,-8.0,9.3,13.950000000000001],"34":[-40.4,-3.4,43.4,34.1],"35":[-95.0,23.4,9.3,13.950000000000001],"36":[-86.4,-20.2,10.85,7.75],"101":[-48.5,-126.2,15.95,11.6],"102":[-87.7,-116.0,29.0,20.3],"103":[-22.7,-124.1,8.7,13.05],"104":[31.7,-120.4,8.7,13.05],"105":[58.6,-116.7,15.95,11.6],"106":[88.3,-111.6,21.75,15.95],"107":[41.6,-100.7,8.7,8.7],"108":[94.5,-83.0,14.5,11.6],"109":[91.3,-65.0,10.15,8.7],"110":[59.3,-37.8,18.85,14.5],"111":[53.6,-56.1,8.7,13.05],"112":[34.6,-14.3,18.85,14.5],"113":[-6.9,-2.8,10.15,10.15],"114":[25.0,19.8,8.7,8.7],"115":[21.2,5.6,14.5,11.6],"116":[-3.0,28.0,8.7,13.05],"117":[-38.1,21.9,8.7,8.7],"118":[37.4,44.4,21.75,15.95],"119":[-32.6,3.1,15.95,11.6],"120":[43.8,69.4,18.85,14.5],"121":[66.7,71.8,18.85,14.5],"122":[99.2,68.9,8.7,13.05],"123":[69.8,94.6,10.15,8.7],"124":[88.1,88.2,10.15,8.7],"125":[102.6,85.1,10.15,8.7],"126":[7.9,79.1,18.85,14.5],"127":[-24.0,84.0,18.85,14.5],"128":[-59.5,88.1,18.85,14.5],"129":[-106.8,93.4,8.7,13.05],"130":[-62.3,114.2,15.95,11.6],"131":[-79.7,116.9,10.15,8.7],"132":[-98.4,116.4,10.15,8.7],"133":[-54.0,59.7,21.75,15.95],"134":[-50.9,-13.9,18.85,14.5],"135":[-88.7,-54.6,18.85,14.5],"136":[-87.6,-78.5,10.15,8.7],"137":[-105.3,-74.8,10.15,8.7],"138":[-58.5,-56.0,8.7,13.05]}; // id -> [x, z, width, depth] (schematic floor plan)
+const FLOOR_H = 13;                                     // height between floors in the 3D view
+const FY = n => (n.floor || 0) * FLOOR_H;
+const W = n => new THREE.Vector3(ROOMS[n.id][0], FY(n), ROOMS[n.id][1]);
+const TYPE = {
+  ENTRANCE:{c:0x3ddc97,w:3.4,h:2.2}, EXIT:{c:0x3ddc97,w:3.2,h:1.6}, STAIRS:{c:0x7aa2ff,w:2.6,h:5},
+  LIFT:{c:0x8a94ad,w:2.4,h:4.6}, TOILET:{c:0xb08cff,w:2.2,h:2}, CLASS:{c:0x5ec8ff,w:2.8,h:3},
+  LAB:{c:0xff9f5e,w:2.8,h:3.2}, HALL:{c:0xffd166,w:3.8,h:4}, OFFICE:{c:0x6ee7d7,w:2.6,h:2.6},
+  ROOM:{c:0x9aa7bd,w:2.4,h:2.4}, JUNCTION:{c:0xdfe6ff,w:1.8,h:0.7}
+};
+const calm = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+const cssVar = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+
+function makePoly(pts) {
+  const cum = [0]; for (let i = 1; i < pts.length; i++) cum.push(cum[i - 1] + pts[i].distanceTo(pts[i - 1]));
+  const total = cum[cum.length - 1];
+  return { total, at(d, out) {
+    d = Math.max(0, Math.min(total, d));
+    let i = 1; while (i < cum.length - 1 && cum[i] < d) i++;
+    const seg = cum[i] - cum[i - 1] || 1;
+    return out.copy(pts[i - 1]).lerp(pts[i], (d - cum[i - 1]) / seg);
+  } };
+}
+
+function createView(canvas) {
+  if (typeof THREE === "undefined") return null;
+  let renderer;
+  try { renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: "high-performance" }); }
+  catch (e) { return null; }
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  renderer.outputEncoding = THREE.sRGBEncoding;
+
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(42, 1, 1, 2500);
+  const clock = new THREE.Clock();
+  const api = { onPick: null, onHover: null };
+
+  scene.add(new THREE.HemisphereLight(0xbfd4ff, 0x141c36, 0.95));
+  const sun = new THREE.DirectionalLight(0xffffff, 0.85); sun.position.set(90, 170, 70); scene.add(sun);
+  const glow = new THREE.PointLight(0x4de1ff, 0.7, 420); glow.position.set(0, 70, 0); scene.add(glow);
+
+  /* ---- environment ---- */
+  const HGT = { ENTRANCE: 2.4, EXIT: 1.2, STAIRS: 7, LIFT: 8, TOILET: 3.6, CLASS: 4.6, LAB: 4.8, HALL: 6, OFFICE: 4.2, ROOM: 4, JUNCTION: 0.5 };
+  const rv = GRAPH.nodes.map(n => ROOMS[n.id]);
+  const minX = Math.min(...rv.map(r => r[0] - r[2] / 2)) - 12, maxX = Math.max(...rv.map(r => r[0] + r[2] / 2)) + 12;
+  const minZ = Math.min(...rv.map(r => r[1] - r[3] / 2)) - 12, maxZ = Math.max(...rv.map(r => r[1] + r[3] / 2)) + 12;
+  const R0 = Math.max(maxX - minX, maxZ - minZ) * 1.15;
+  const slab = new THREE.Mesh(new THREE.BoxGeometry(maxX - minX, 1, maxZ - minZ), new THREE.MeshStandardMaterial({ color: 0x0d1630, roughness: 0.85, metalness: 0.1 }));
+  slab.position.set((minX + maxX) / 2, -0.55, (minZ + maxZ) / 2); scene.add(slab);
+  const slabEdge = new THREE.LineSegments(new THREE.EdgesGeometry(slab.geometry), new THREE.LineBasicMaterial({ color: 0x4de1ff, transparent: true, opacity: 0.55 }));
+  slabEdge.position.copy(slab.position); scene.add(slabEdge);
+  const upperSlabs = [];
+  FLOORS.filter(f => f > 0).forEach(f => {
+    const fr = GRAPH.nodes.filter(n => (n.floor || 0) === f).map(n => ROOMS[n.id]);
+    const ux0 = Math.min(...fr.map(r => r[0] - r[2] / 2)) - 10, ux1 = Math.max(...fr.map(r => r[0] + r[2] / 2)) + 10;
+    const uz0 = Math.min(...fr.map(r => r[1] - r[3] / 2)) - 10, uz1 = Math.max(...fr.map(r => r[1] + r[3] / 2)) + 10;
+    const us = new THREE.Mesh(new THREE.BoxGeometry(ux1 - ux0, 0.6, uz1 - uz0), new THREE.MeshStandardMaterial({ color: 0x1a2a4d, transparent: true, opacity: 0.35, depthWrite: false }));
+    us.position.set((ux0 + ux1) / 2, f * FLOOR_H - 0.35, (uz0 + uz1) / 2); scene.add(us);
+    const ue = new THREE.LineSegments(new THREE.EdgesGeometry(us.geometry), new THREE.LineBasicMaterial({ color: 0x8b6cff, transparent: true, opacity: 0.7 }));
+    ue.position.copy(us.position); scene.add(ue); upperSlabs.push(us);
+  });
+  let grid = null;
+  const dustGeo = new THREE.BufferGeometry(), dp = new Float32Array(260 * 3);
+  for (let i = 0; i < 260; i++) { dp[i*3] = (Math.random() - .5) * 340; dp[i*3+1] = 10 + Math.random() * 90; dp[i*3+2] = (Math.random() - .5) * 280; }
+  dustGeo.setAttribute("position", new THREE.BufferAttribute(dp, 3));
+  const dust = new THREE.Points(dustGeo, new THREE.PointsMaterial({ size: 0.8, color: 0x4de1ff, transparent: true, opacity: 0.45, depthWrite: false }));
+  scene.add(dust);
+
+  /* ---- corridors: flat strips clipped at the room walls, with door markers ---- */
+  const edges = [];
+  GRAPH.edges.forEach(([a, b]) => {
+    const na = nodeById.get(a), nb = nodeById.get(b);
+    if ((na.floor || 0) !== (nb.floor || 0)) {          // stairs / lift shaft between floors
+      const A = W(na), B = W(nb); A.y += 1; B.y += 1;
+      const dir = B.clone().sub(A), len = dir.length();
+      const m = new THREE.Mesh(new THREE.CylinderGeometry(0.9, 0.9, len, 10), new THREE.MeshStandardMaterial({ color: 0x8b6cff, emissive: 0x8b6cff, emissiveIntensity: 0.4, transparent: true, opacity: 0.75 }));
+      m.position.copy(A).add(B).multiplyScalar(0.5); m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir.normalize());
+      scene.add(m); edges.push({ m, a, b, doors: [], shaft: true }); return;
+    }
+    const fy = FY(na);
+    const ra = ROOMS[a], rb = ROOMS[b], dx = rb[0] - ra[0], dz = rb[1] - ra[1];
+    const lim = (w, d) => Math.min(Math.abs(dx) > 1e-6 ? w / 2 / Math.abs(dx) : Infinity, Math.abs(dz) > 1e-6 ? d / 2 / Math.abs(dz) : Infinity);
+    let t0 = lim(ra[2], ra[3]), t1 = 1 - lim(rb[2], rb[3]);
+    if (t1 - t0 < 0.03) { const mid = (t0 + t1) / 2; t0 = mid - 0.015; t1 = mid + 0.015; }
+    const L = Math.hypot(dx, dz), ang = Math.atan2(-dz, dx);
+    const m = new THREE.Mesh(new THREE.BoxGeometry(Math.max(0.5, L * (t1 - t0)), 0.14, 2.6),
+      new THREE.MeshStandardMaterial({ color: 0x4a78c2, emissive: 0x4a78c2, emissiveIntensity: 0.3, roughness: 0.7, transparent: true, opacity: 0.8 }));
+    m.position.set(ra[0] + dx * (t0 + t1) / 2, fy + 0.07, ra[1] + dz * (t0 + t1) / 2); m.rotation.y = ang; scene.add(m);
+    const doors = [t0, t1].map(t => {
+      const d = new THREE.Mesh(new THREE.BoxGeometry(0.6, 2.4, 3.4), new THREE.MeshBasicMaterial({ color: 0x4de1ff, transparent: true, opacity: 0.85 }));
+      d.position.set(ra[0] + dx * t, fy + 1.2, ra[1] + dz * t); d.rotation.y = ang; scene.add(d); return d;
+    });
+    edges.push({ m, a, b, doors });
+  });
+
+  /* ---- rooms ---- */
+  const objs = new Map(), tops = new Map(), bodies = [];
+  const RED = new THREE.Color(0xff3b57);
+  const crowdGeo = new THREE.CylinderGeometry(0.45, 0.45, 1.8, 6), dummy = new THREE.Object3D();
+  GRAPH.nodes.forEach(n => {
+    const T = TYPE[n.type], R = ROOMS[n.id], w = R[2], d = R[3], h = HGT[n.type], junction = n.type === "JUNCTION";
+    const g = new THREE.Group(); g.position.set(R[0], FY(n), R[1]); scene.add(g);
+    const floor = new THREE.Mesh(new THREE.BoxGeometry(w, 0.3, d), new THREE.MeshStandardMaterial({ color: T.c, emissive: T.c, emissiveIntensity: 0.18, roughness: 0.8, transparent: true, opacity: 0.6 }));
+    floor.position.y = 0.15; g.add(floor);
+    const wallGeo = new THREE.BoxGeometry(w, h, d);
+    const body = new THREE.Mesh(wallGeo, new THREE.MeshStandardMaterial({ color: T.c, emissive: T.c, emissiveIntensity: 0.2, roughness: 0.3, metalness: 0.1, transparent: true, opacity: junction ? 0.06 : 0.16, depthWrite: false, side: THREE.DoubleSide }));
+    body.position.y = h / 2; body.userData.id = n.id; g.add(body); bodies.push(body);
+    const outline = new THREE.LineSegments(new THREE.EdgesGeometry(wallGeo), new THREE.LineBasicMaterial({ color: T.c, transparent: true, opacity: junction ? 0.4 : 0.95 }));
+    outline.position.y = h / 2; g.add(outline);
+    const o = { g, body, floor, outline, T, n, h, w, d, junction, base: new THREE.Color(T.c) };
+    if (n.type === "STAIRS") for (let i = 0; i < 5; i++) {
+      const st = new THREE.Mesh(new THREE.BoxGeometry(w * 0.8, (i + 1) * h / 6, d / 6), new THREE.MeshStandardMaterial({ color: T.c, roughness: 0.6 }));
+      st.position.set(0, (i + 1) * h / 12, d / 2 - d / 12 - i * d / 6); g.add(st);
+    }
+    if (n.type === "LIFT") { const sh = new THREE.Mesh(new THREE.BoxGeometry(w * 0.5, h * 0.9, d * 0.5), new THREE.MeshStandardMaterial({ color: 0xc8d0e4, metalness: 0.6, roughness: 0.3 })); sh.position.y = h * 0.45; g.add(sh); }
+    if (isExit(n)) {
+      o.beacon = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 22, 8), new THREE.MeshBasicMaterial({ color: 0x3ddc97, transparent: true, opacity: 0.4, blending: THREE.AdditiveBlending, depthWrite: false }));
+      o.beacon.position.y = 11; g.add(o.beacon);
+      const r0 = Math.min(w, d) * 0.42;
+      o.pulse = new THREE.Mesh(new THREE.RingGeometry(r0, r0 + 0.5, 40), new THREE.MeshBasicMaterial({ color: 0x3ddc97, transparent: true, opacity: 0.6, side: THREE.DoubleSide, depthWrite: false }));
+      o.pulse.rotation.x = -Math.PI / 2; o.pulse.position.y = 0.36; g.add(o.pulse);
+    }
+    o.heat = new THREE.Mesh(new THREE.CircleGeometry(1, 40), new THREE.MeshBasicMaterial({ color: 0xff2d4a, transparent: true, opacity: 0.3, depthWrite: false }));
+    o.heat.rotation.x = -Math.PI / 2; o.heat.position.y = 0.04; o.heat.visible = false; g.add(o.heat);
+    let seed = n.id * 7919 + 13; const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+    o.crowd = new THREE.InstancedMesh(crowdGeo, new THREE.MeshStandardMaterial({ color: 0xffb020, emissive: 0xffb020, emissiveIntensity: 0.45 }), 24);
+    for (let i = 0; i < 24; i++) { dummy.position.set((rnd() - 0.5) * (w - 2.5), 1.2, (rnd() - 0.5) * (d - 2.5)); dummy.updateMatrix(); o.crowd.setMatrixAt(i, dummy.matrix); }
+    o.crowd.count = 0; o.crowd.visible = false; g.add(o.crowd);
+    o.block = new THREE.Group();
+    const xl = Math.max(w, d) * 0.85;
+    [Math.PI / 4, -Math.PI / 4].forEach(r => { const b = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.7, xl), new THREE.MeshBasicMaterial({ color: 0xff2d4a, depthTest: false })); b.rotation.y = r; b.renderOrder = 9; o.block.add(b); });
+    o.block.position.y = h + 1.6; o.block.visible = false; g.add(o.block);
+    o.fire = new THREE.Group();
+    [[0, 0, 1.1, 0xff7a1a], [1.6, 0.9, 0.8, 0xffc23a], [-1.4, -0.9, 0.9, 0xff4d1a], [0.4, -1.8, 0.7, 0xffc23a]].forEach(([x, z, sc, c]) => {
+      const f = new THREE.Mesh(new THREE.ConeGeometry(1.5 * sc, 5.6 * sc, 8), new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: 0.88, blending: THREE.AdditiveBlending, depthWrite: false }));
+      f.position.set(x, 2.8 * sc, z); o.fire.add(f);
+    });
+    o.fire.position.y = 0.3; o.fire.visible = false; g.add(o.fire);
+    const rr = Math.min(w, d) * 0.42;
+    o.med = new THREE.Mesh(new THREE.TorusGeometry(rr, 0.25, 8, 40), new THREE.MeshBasicMaterial({ color: 0x4da6ff, transparent: true, opacity: 0.9 }));
+    o.med.rotation.x = Math.PI / 2; o.med.position.y = h + 1.2; o.med.visible = false; g.add(o.med);
+    o.sec = new THREE.Mesh(new THREE.TorusGeometry(rr, 0.28, 6, 6), new THREE.MeshBasicMaterial({ color: 0xb06cff, transparent: true, opacity: 0.95 }));
+    o.sec.rotation.x = Math.PI / 2; o.sec.position.y = h + 2; o.sec.visible = false; g.add(o.sec);
+    objs.set(n.id, o); tops.set(n.id, new THREE.Vector3(R[0], FY(n) + h, R[1]));
+  });
+
+  /* ---- labels: name painted on each room floor + floating tags for highlighted rooms ---- */
+  let labelMode = "key", highlight = new Set(), selIds = new Set(), alertIds = new Set();
+  function makeLabel(n) {
+    const c = document.createElement("canvas"), x = c.getContext("2d");
+    const font = "600 30px " + (cssVar("--sans") || "sans-serif");
+    x.font = font; const text = n.id + "  " + n.name, w = Math.ceil(x.measureText(text).width) + 36;
+    c.width = w; c.height = 64; x.font = font; x.textBaseline = "middle";
+    x.fillStyle = cssVar("--labelbg") || "rgba(8,13,26,.8)"; x.beginPath();
+    (x.roundRect ? x.roundRect(0, 4, w, 56, 14) : x.rect(0, 4, w, 56)); x.fill();
+    x.fillStyle = cssVar("--label") || "#fff"; x.fillText(text, 18, 33);
+    const tex = new THREE.CanvasTexture(c); tex.minFilter = THREE.LinearFilter;
+    const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false, depthWrite: false }));
+    sp.scale.set(4.2 * w / 64, 4.2, 1); sp.renderOrder = 20; return sp;
+  }
+  function makeFloorLabel(o) {
+    const c = document.createElement("canvas"), x = c.getContext("2d"), n = o.n;
+    const font = "700 44px " + (cssVar("--sans") || "sans-serif");
+    x.font = font; const tw = Math.ceil(x.measureText(n.name).width);
+    c.width = tw + 40; c.height = 100; x.font = font; x.textAlign = "center"; x.textBaseline = "middle";
+    x.fillStyle = cssVar("--label") || "#fff"; x.globalAlpha = 0.92; x.fillText(n.name, c.width / 2, 40);
+    x.font = "600 26px " + (cssVar("--mono") || "monospace"); x.globalAlpha = 0.55; x.fillText("#" + n.id, c.width / 2, 80);
+    const tex = new THREE.CanvasTexture(c); tex.minFilter = THREE.LinearFilter;
+    const aspect = c.width / c.height; let pw = o.w * 0.86, ph = pw / aspect;
+    if (ph > o.d * 0.6) { ph = o.d * 0.6; pw = ph * aspect; }
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(pw, ph), new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false }));
+    m.rotation.x = -Math.PI / 2; m.position.y = 0.34; return m;
+  }
+  function buildLabels() {
+    objs.forEach(o => {
+      [o.label, o.flabel].forEach(l => { if (l) { o.g.remove(l); l.material.map.dispose(); l.material.dispose(); l.geometry && l.geometry.dispose(); } });
+      o.label = makeLabel(o.n); o.label.position.y = o.h + 4; o.g.add(o.label);
+      o.flabel = makeFloorLabel(o); o.g.add(o.flabel);
+    });
+    updateLabels();
+  }
+  function updateLabels() {
+    objs.forEach((o, id) => {
+      if (!o.label) return;
+      o.label.visible = labelMode === "all" || (labelMode === "key" && (highlight.has(id) || selIds.has(id) || alertIds.has(id)));
+      o.flabel.visible = labelMode !== "off" && (o.n.floor || 0) === focusFloor;
+    });
+  }
+
+  /* ---- selection markers ---- */
+  function marker(color) {
+    const g = new THREE.Group();
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(3.6, 0.28, 8, 40), new THREE.MeshBasicMaterial({ color, depthTest: false })); ring.rotation.x = Math.PI / 2; ring.renderOrder = 11;
+    const cone = new THREE.Mesh(new THREE.ConeGeometry(1.1, 2.6, 12), new THREE.MeshBasicMaterial({ color, depthTest: false })); cone.rotation.x = Math.PI; cone.position.y = 10; cone.renderOrder = 11;
+    g.add(ring, cone); g.visible = false; scene.add(g); return g;
+  }
+  const mFrom = marker(0x3ddc97), mTo = marker(0x4de1ff), mSel = marker(0xffffff);
+
+  /* ---- routes + agents ---- */
+  const routeGroup = new THREE.Group(), agentGroup = new THREE.Group(); scene.add(routeGroup, agentGroup);
+  let runners = [], agents = [], agentWait = 0;
+  function clearGroup(g) {
+    while (g.children.length) { const c = g.children.pop(); c.geometry && c.geometry.dispose(); c.material && c.material.dispose(); }
+  }
+  api.setRoutes = list => {
+    clearGroup(routeGroup); runners = []; highlight = new Set();
+    list.forEach((r, i) => {
+      r.path.forEach(id => highlight.add(id));
+      const pts = r.path.map(id => { const p = W(nodeById.get(id)); p.y += 0.6 + i * 0.4; return p; });
+      if (pts.length > 1) {
+        const tube = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts, false, "catmullrom", 0.05), pts.length * 14, 0.4, 8, false),
+          new THREE.MeshBasicMaterial({ color: r.color, transparent: true, opacity: 0.92, depthTest: false }));
+        tube.renderOrder = 10; routeGroup.add(tube);
+      }
+      pts.forEach(p => { const s = new THREE.Mesh(new THREE.SphereGeometry(0.75, 12, 10), new THREE.MeshBasicMaterial({ color: r.color, depthTest: false })); s.position.copy(p); s.renderOrder = 10; routeGroup.add(s); });
+      if (pts.length > 1) {
+        const head = new THREE.Mesh(new THREE.SphereGeometry(1.2, 16, 12), new THREE.MeshBasicMaterial({ color: 0xffffff, depthTest: false })); head.renderOrder = 12; routeGroup.add(head);
+        const trail = [];
+        for (let k = 0; k < 5; k++) { const t = new THREE.Mesh(new THREE.SphereGeometry(0.95 - k * 0.14, 10, 8), new THREE.MeshBasicMaterial({ color: r.color, transparent: true, opacity: 0.85 - k * 0.14, depthTest: false })); t.renderOrder = 12; routeGroup.add(t); trail.push(t); }
+        runners.push({ poly: makePoly(pts), head, trail, d: -i * 6 });
+      }
+    });
+    updateLabels();
+  };
+  api.setAgents = list => {
+    clearGroup(agentGroup); agents = []; agentWait = 0;
+    list.forEach(a => {
+      const pts = a.path.map(id => { const p = W(nodeById.get(id)); p.y += 1.2; return p; });
+      if (pts.length < 2) return;
+      const m = new THREE.Mesh(new THREE.SphereGeometry(a.size, 14, 10), new THREE.MeshBasicMaterial({ color: a.color, transparent: true, opacity: 0.95, depthTest: false }));
+      m.renderOrder = 13; agentGroup.add(m); agents.push({ m, poly: makePoly(pts), d: 0, speed: 16 + Math.random() * 4 });
+    });
+  };
+  const tmp = new THREE.Vector3();
+
+  /* ---- node/edge appearance ---- */
+  api.refresh = emergencies => {
+    alertIds = new Set();
+    objs.forEach((o, id) => {
+      const nd = nodeById.get(id), heat = Math.min(1, nd.risk / 10);
+      const col = o.base.clone().lerp(RED, Math.min(1, nd.risk / 8) * 0.85);
+      o.floor.material.color.copy(col); o.floor.material.emissive.copy(col); o.floor.material.emissiveIntensity = 0.18 + heat * 0.7;
+      o.body.material.color.copy(col); o.body.material.emissive.copy(col);
+      o.body.material.opacity = nd.blocked ? 0.42 : (o.junction ? 0.06 : 0.16 + heat * 0.12);
+      o.outline.material.color.copy(nd.blocked ? RED : col);
+      o.heat.visible = nd.risk > 0.05; o.heat.scale.setScalar(Math.max(o.w, o.d) * 0.7 + nd.risk * 1.6); o.heat.material.opacity = heat * 0.4;
+      o.crowd.count = Math.round(Math.min(10, nd.congestion) * 2.4); o.crowd.visible = o.crowd.count > 0;
+      o.block.visible = nd.blocked;
+      o.fire.visible = o.med.visible = o.sec.visible = false;
+    });
+    emergencies.forEach(e => {
+      if (e.status === "RESOLVED") return;
+      const o = objs.get(e.loc); alertIds.add(e.loc);
+      if (e.type === "fire") o.fire.visible = true; else if (e.type === "medical") o.med.visible = true; else o.sec.visible = true;
+    });
+    const edgeCol = new THREE.Color(cssVar("--edge") || "#4a78c2"), doorCol = new THREE.Color(cssVar("--accent") || "#4de1ff");
+    edges.forEach(e => {
+      const a = nodeById.get(e.a), b = nodeById.get(e.b), r = Math.max(a.risk, b.risk), blocked = a.blocked || b.blocked;
+      e.m.material.color.copy(edgeCol).lerp(RED, Math.min(1, r / 7)); e.m.material.emissive.copy(e.m.material.color);
+      e.m.material.opacity = blocked ? 0.3 : 0.8;
+      e.doors.forEach(d => { d.material.color.copy(blocked ? RED : doorCol); });
+    });
+    updateLabels();
+  };
+  api.setSel = (from, to, sel) => {
+    [[mFrom, from], [mTo, to], [mSel, sel]].forEach(([m, id]) => { m.visible = !!id; if (id) m.position.set(tops.get(id).x, FY(nodeById.get(id)) + 0.4, tops.get(id).z); });
+    selIds = new Set([from, to, sel].filter(Boolean)); updateLabels();
+  };
+
+  /* ---- theme ---- */
+  function applyTheme() {
+    const bg = new THREE.Color(cssVar("--scene-bg") || "#060912"), light = bg.r + bg.g + bg.b > 1.5;
+    scene.background = bg; scene.fog = new THREE.FogExp2(bg.getHex(), light ? 0.0016 : 0.0022);
+    slab.material.color.set(light ? 0xf4f7ff : 0x0d1630); slabEdge.material.color.set(cssVar("--accent") || "#4de1ff");
+    dust.material.color.set(cssVar("--accent") || "#4de1ff"); dust.material.opacity = light ? 0.25 : 0.45;
+    if (grid) { scene.remove(grid); grid.geometry.dispose(); grid.material.dispose(); }
+    grid = new THREE.GridHelper(520, 52, new THREE.Color(cssVar("--grid1") || "#27406f"), new THREE.Color(cssVar("--grid2") || "#111b34"));
+    grid.position.y = 0.02; grid.material.transparent = true; grid.material.opacity = 0.7; scene.add(grid);
+    buildLabels();
+  }
+  api.applyTheme = applyTheme;
+
+  /* ---- camera (own orbit controls) ---- */
+  const cam = { th: 0.5, ph: 0.95, r: R0, tx: (minX + maxX) / 2, tz: (minZ + maxZ) / 2, ty: 0 }, des = Object.assign({}, cam);
+  const sph = new THREE.Spherical(), target = new THREE.Vector3();
+  let spin = false;
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  const rotate = (dx, dy) => { des.th -= dx * 0.0055; des.ph = clamp(des.ph - dy * 0.0055, 0.12, 1.5); };
+  const zoom = f => { des.r = clamp(des.r * f, 35, 620); };
+  const pan = (dx, dy) => {
+    const k = des.r * 0.0016, rx = Math.cos(des.th), rz = -Math.sin(des.th), fx = -Math.sin(des.th), fz = -Math.cos(des.th);
+    des.tx += -rx * dx * k + fx * dy * k; des.tz += -rz * dx * k + fz * dy * k;
+    des.tx = clamp(des.tx, minX, maxX); des.tz = clamp(des.tz, minZ, maxZ);
+  };
+  api.preset = name => {
+    spin = false;
+    const cx = (minX + maxX) / 2, cz = (minZ + maxZ) / 2;
+    if (name === "iso") Object.assign(des, { th: 0.5, ph: 0.95, r: R0, tx: cx, tz: cz });
+    if (name === "top") Object.assign(des, { th: 0, ph: 0.12, r: R0 * 1.05, tx: cx, tz: cz });
+    if (name === "side") Object.assign(des, { th: 0, ph: 1.3, r: R0 * 0.95, tx: cx, tz: cz });
+  };
+  api.frame = ids => {
+    if (!ids || !ids.length) return api.preset("iso");
+    let cx = 0, cz = 0, ext = 0; const ps = ids.map(id => W(nodeById.get(id)));
+    ps.forEach(p => { cx += p.x; cz += p.z; }); cx /= ps.length; cz /= ps.length;
+    ps.forEach(p => { ext = Math.max(ext, Math.hypot(p.x - cx, p.z - cz)); });
+    Object.assign(des, { tx: cx, tz: cz, r: clamp(ext * 2.6 + 80, 80, 460), ph: 0.95 });
+  };
+  let focusFloor = 0;
+  api.setFloor = f => { focusFloor = f; des.ty = f * FLOOR_H; updateLabels(); };
+  api.toggleSpin = () => (spin = !spin && !calm);
+  api.cycleLabels = () => { labelMode = labelMode === "key" ? "all" : labelMode === "all" ? "off" : "key"; updateLabels(); return labelMode; };
+
+  /* ---- pointer input ---- */
+  const ptrs = new Map(); let down = null, pinch = null;
+  const v2 = new THREE.Vector3();
+  const ray = new THREE.Raycaster(), ndc = new THREE.Vector2();
+  function pickAt(cx, cy, maxPx) {
+    const r = canvas.getBoundingClientRect();
+    ndc.set((cx - r.left) / r.width * 2 - 1, -((cy - r.top) / r.height) * 2 + 1);
+    ray.setFromCamera(ndc, camera);
+    const hit = ray.intersectObjects(bodies, false)[0];
+    return hit ? hit.object.userData.id : nearest(cx, cy, maxPx);
+  }
+  function nearest(cx, cy, maxPx) {
+    const r = canvas.getBoundingClientRect(); let best = null, bd = maxPx;
+    tops.forEach((p, id) => {
+      v2.copy(p).project(camera); if (v2.z > 1) return;
+      const sx = (v2.x + 1) / 2 * r.width + r.left, sy = (1 - v2.y) / 2 * r.height + r.top, d = Math.hypot(sx - cx, sy - cy);
+      if (d < bd) { bd = d; best = id; }
+    });
+    return best;
+  }
+  canvas.addEventListener("contextmenu", e => e.preventDefault());
+  canvas.addEventListener("wheel", e => { e.preventDefault(); zoom(Math.exp(e.deltaY * 0.0012)); }, { passive: false });
+  canvas.addEventListener("pointerdown", e => {
+    try { canvas.setPointerCapture(e.pointerId); } catch (_) {}
+    ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY, b: e.button, shift: e.shiftKey, type: e.pointerType });
+    down = { x: e.clientX, y: e.clientY, t: performance.now(), moved: 0 }; spin = false;
+    if (ptrs.size === 2) pinch = null;
+  });
+  canvas.addEventListener("pointermove", e => {
+    const p = ptrs.get(e.pointerId);
+    if (!p) { if (e.pointerType === "mouse" && api.onHover) { const id = pickAt(e.clientX, e.clientY, 24); api.onHover(id, e.clientX, e.clientY); } return; }
+    const dx = e.clientX - p.x, dy = e.clientY - p.y; p.x = e.clientX; p.y = e.clientY;
+    if (down) down.moved += Math.abs(dx) + Math.abs(dy);
+    if (ptrs.size === 1) { if (p.b === 2 || p.b === 1 || p.shift) pan(dx, dy); else rotate(dx, dy); }
+    else if (ptrs.size === 2) {
+      const [a, b] = [...ptrs.values()], d = Math.hypot(a.x - b.x, a.y - b.y), cx = (a.x + b.x) / 2, cy = (a.y + b.y) / 2;
+      if (pinch) { zoom(pinch.d / Math.max(d, 1)); pan(cx - pinch.cx, cy - pinch.cy); }
+      pinch = { d, cx, cy };
+    }
+  });
+  const end = e => {
+    const p = ptrs.get(e.pointerId);
+    if (p && ptrs.size === 1 && down && down.moved < 7 && performance.now() - down.t < 600 && e.type === "pointerup") {
+      const id = pickAt(e.clientX, e.clientY, p.type === "touch" ? 38 : 26); if (id && api.onPick) api.onPick(id);
+    }
+    ptrs.delete(e.pointerId); pinch = null; if (!ptrs.size) down = null;
+  };
+  canvas.addEventListener("pointerup", end); canvas.addEventListener("pointercancel", end);
+  canvas.addEventListener("pointerleave", () => { if (api.onHover && !ptrs.size) api.onHover(null); });
+
+  /* ---- resize + loop ---- */
+  function resize() {
+    const r = canvas.getBoundingClientRect(); if (!r.width || !r.height) return;
+    renderer.setSize(r.width, r.height, false); camera.aspect = r.width / r.height; camera.updateProjectionMatrix();
+  }
+  new ResizeObserver(resize).observe(canvas); resize();
+
+  const tmpV = new THREE.Vector3();
+  let activeView = true;
+  api.setActive = on => { activeView = on; if (on) resize(); };
+  function loop() {
+    requestAnimationFrame(loop);
+    if (!activeView) { clock.getDelta(); return; }
+    const dt = Math.min(clock.getDelta(), 0.05), t = clock.elapsedTime, k = 1 - Math.exp(-dt * 9);
+    if (spin) des.th += dt * 0.12;
+    cam.th += (des.th - cam.th) * k; cam.ph += (des.ph - cam.ph) * k; cam.r += (des.r - cam.r) * k;
+    cam.tx += (des.tx - cam.tx) * k; cam.tz += (des.tz - cam.tz) * k;
+    cam.ty += (des.ty - cam.ty) * k; target.set(cam.tx, cam.ty, cam.tz); sph.set(cam.r, cam.ph, cam.th);
+    camera.position.setFromSpherical(sph).add(target); camera.lookAt(target);
+    glow.position.set(cam.tx, 70, cam.tz);
+
+    const amp = calm ? 0 : 1;
+    objs.forEach((o, id) => {
+      if (o.pulse) { const s = 1 + ((t * 0.9 + id * 0.13) % 1) * 1.1 * amp; o.pulse.scale.setScalar(s); o.pulse.material.opacity = 0.65 * (1 - ((t * 0.9 + id * 0.13) % 1) * amp); }
+      if (o.fire.visible) o.fire.children.forEach((f, i) => { const s = 1 + 0.28 * Math.sin(t * 9 + i * 2 + id) * amp; f.scale.set(1, s, 1); });
+      if (o.block.visible) o.block.rotation.y = t * 0.8 * amp;
+      if (o.med.visible) { const s = 1 + 0.18 * Math.sin(t * 4 + id) * amp; o.med.scale.set(s, s, s); }
+      if (o.sec.visible) o.sec.rotation.z = t * 1.4 * amp;
+    });
+    mFrom.children[1].position.y = 10 + Math.sin(t * 4) * 0.6 * amp; mTo.children[1].position.y = 10 + Math.sin(t * 4 + 1) * 0.6 * amp; mSel.children[1].position.y = 10 + Math.sin(t * 4 + 2) * 0.6 * amp;
+    dust.rotation.y = t * 0.01 * amp;
+
+    runners.forEach(r => {
+      r.d += dt * 22; if (r.d > r.poly.total + 14) r.d = -4;
+      const d = Math.max(0, Math.min(r.d, r.poly.total));
+      r.poly.at(d, tmpV); r.head.position.copy(tmpV); r.head.visible = r.d >= 0;
+      r.trail.forEach((s, i) => { const dd = r.d - (i + 1) * 2.6; s.visible = dd >= 0 && r.d >= 0; if (s.visible) { r.poly.at(Math.min(dd, r.poly.total), tmpV); s.position.copy(tmpV); } });
+    });
+    if (agents.length) {
+      let alive = 0;
+      agents.forEach(a => { a.d += dt * a.speed; const done = a.d >= a.poly.total; a.m.visible = !done; if (!done) { alive++; a.poly.at(a.d, a.m.position); } });
+      if (!alive) { agentWait += dt; if (agentWait > 1.4) { agentWait = 0; agents.forEach(a => { a.d = 0; }); } }
+    }
+    renderer.render(scene, camera);
+  }
+  applyTheme(); loop();
+  return api;
+}
+
+// Campus RESQ · 2D campus map and node-link graph, drawn with SVG (one instance per view and floor)
+"use strict";
+/* ===================== 2D CAMPUS MAP (SVG) ===================== */
+function poly2(pts) {
+  const cum = [0]; for (let i = 1; i < pts.length; i++) cum.push(cum[i - 1] + Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]));
+  const total = cum[cum.length - 1];
+  return { total, at(d) {
+    d = Math.max(0, Math.min(total, d)); let i = 1; while (i < cum.length - 1 && cum[i] < d) i++;
+    const f = (d - cum[i - 1]) / ((cum[i] - cum[i - 1]) || 1);
+    return [pts[i - 1][0] + (pts[i][0] - pts[i - 1][0]) * f, pts[i - 1][1] + (pts[i][1] - pts[i - 1][1]) * f];
+  } };
+}
+
+// Node centres traced from the hand-labelled "Campus Navigation Graph" photo (pixels).
+const GPOS = {1:[340.1,100.7],2:[246.9,129.1],3:[153.8,138.4],4:[87.0,158.1],5:[135.9,194.4],6:[124.9,234.3],7:[220.3,290.3],8:[310.7,295.0],9:[404.0,296.0],10:[490.8,296.8],11:[315.4,357.5],12:[530.0,384.0],13:[432.1,400.4],14:[327.8,400.6],15:[557.0,409.0],16:[248.9,461.2],17:[182.6,509.6],18:[125.0,546.9],19:[125.6,600.7],20:[276.2,537.3],21:[383.9,546.5],22:[471.1,546.6],23:[562.8,544.9],24:[638.9,523.3],25:[578.0,479.0],26:[606.0,503.0],27:[529.8,474.0],28:[411.3,476.0],29:[554.7,239.1],30:[513.7,139.5],31:[597.1,153.3],32:[618.3,177.5],33:[447.9,112.5],34:[373.3,191.6],35:[252.2,88.4],36:[595.2,67.2]};
+// First floor: node centres traced from the first-floor drawing (IMG-20261113-WA0003.jpg, pixels).
+const GPOS1 = {101:[246,262],102:[100,301],103:[340,267],104:[541,282],105:[642,296],106:[752,314],107:[577,357],108:[774,421],109:[764,489],110:[645,587],111:[622,520],112:[551,676],113:[398,716],114:[517,795],115:[501,754],116:[414,832],117:[283,809],118:[562,892],119:[304,734],120:[590,985],121:[667,993],122:[793,985],123:[683,1077],124:[753,1055],125:[800,1041],126:[452,1020],127:[337,1038],128:[207,1055],129:[30,1073],130:[195,1151],131:[131,1160],132:[59,1160],133:[225,951],134:[233,679],135:[96,526],136:[99,436],137:[34,451],138:[206,521]};
+// Graph-view colours follow the photo's legend.
+const GCOL = { ENTRANCE: "#7bc47f", EXIT: "#7bc47f", OFFICE: "#f2cf66", HALL: "#f2cf66", ROOM: "#f2cf66", CLASS: "#7fb2e6",
+               LAB: "#c39bd9", STAIRS: "#f0a35e", LIFT: "#f0a35e", TOILET: "#bdbdbd", JUNCTION: "#ffffff" };
+
+// kind "map": campus map with room blocks; kind "graph": the node-link graph from the photo.
+function createMap2D(host, kind, floorNo) {
+  const graph = kind === "graph", FL = floorNo || 0, GS = FL ? 0.36 : 0.45, NR = 6;
+  const FNODES = GRAPH.nodes.filter(n => (n.floor || 0) === FL);                 // this floor only
+  const FEDGES = GRAPH.edges.filter(([a, b]) => floorOf(a) === FL && floorOf(b) === FL);
+  const LINKS = GRAPH.edges.filter(([a, b]) => (floorOf(a) === FL) !== (floorOf(b) === FL))  // stairs/lifts to other floors
+                           .map(([a, b]) => (floorOf(a) === FL ? [a, b] : [b, a]));
+  const BOX = {};                                  // id -> [x, z, width, depth]
+  FNODES.forEach(n => { BOX[n.id] = graph ? [(FL ? GPOS1 : GPOS)[n.id][0] * GS, (FL ? GPOS1 : GPOS)[n.id][1] * GS, NR * 2, NR * 2] : ROOMS[n.id]; });
+  const NS = "http://www.w3.org/2000/svg";
+  const mk = (tag, attrs, parent) => { const e = document.createElementNS(NS, tag); if (attrs) for (const k in attrs) e.setAttribute(k, attrs[k]); if (parent) parent.appendChild(e); return e; };
+  const hex = c => "#" + c.toString(16).padStart(6, "0");
+  const f2 = v => (Math.round(v * 100) / 100).toString();
+  const svg = mk("svg", { id: (graph ? "graph2d" : "map2d") + (FL ? "-" + FL : ""), class: "m2svg" + (graph ? " graph" : "") + (FL ? " upper" : ""), role: "img",
+                         "aria-label": (graph ? "Campus navigation graph, " : "Campus map, ") + FLOOR_NAME[FL], preserveAspectRatio: "xMidYMid meet" });
+  host.insertBefore(svg, host.querySelector("#nogl"));
+  const UID = svg.getAttribute("id") + "-";        // ids inside this SVG must be unique on the page
+  const api = { onPick: null, onHover: null };
+
+  /* ---- extents ---- */
+  const rv = Object.values(BOX);
+  const B = { x0: Math.min(...rv.map(r => r[0] - r[2] / 2)) - 7, x1: Math.max(...rv.map(r => r[0] + r[2] / 2)) + 7,
+              z0: Math.min(...rv.map(r => r[1] - r[3] / 2)) - 7, z1: Math.max(...rv.map(r => r[1] + r[3] / 2)) + 7 };
+  const RING = 26;
+  const RR = { x0: B.x0 - RING, x1: B.x1 + RING, z0: B.z0 - RING, z1: B.z1 + RING };
+  const E = { x0: RR.x0 - 75, x1: RR.x1 + 75, z0: RR.z0 - 65, z1: RR.z1 + 65 };
+  const NORMAL = { W: [-1, 0], E: [1, 0], N: [0, -1], S: [0, 1] }, TANGENT = { W: [0, 1], E: [0, 1], N: [1, 0], S: [1, 0] };
+  const OPP = { W: "E", E: "W", N: "S", S: "N" };
+  function side(id) { const r = BOX[id], d = { W: r[0] - B.x0, E: B.x1 - r[0], N: r[1] - B.z0, S: B.z1 - r[1] }; return Object.keys(d).reduce((a, b) => (d[a] <= d[b] ? a : b)); }
+  function edgePoint(id, off) { const r = BOX[id], s = side(id); return s === "W" ? [B.x0 - off, r[1]] : s === "E" ? [B.x1 + off, r[1]] : s === "N" ? [r[0], B.z0 - off] : [r[0], B.z1 + off]; }
+
+  /* ---- defs ---- */
+  const defs = mk("defs", null, svg);
+  const hatch = mk("pattern", { id: UID + "hatch", width: 2.4, height: 2.4, patternUnits: "userSpaceOnUse", patternTransform: "rotate(45)" }, defs);
+  mk("rect", { width: 2.4, height: 2.4, fill: "#ff3b57", "fill-opacity": 0.18 }, hatch);
+  mk("line", { x1: 0, y1: 0, x2: 0, y2: 2.4, stroke: "#ff3b57", "stroke-width": 1 }, hatch);
+  const grad = mk("radialGradient", { id: UID + "heat" }, defs);
+  [["0%", "#ff3b57", 0.8], ["55%", "#ff6b3d", 0.35], ["100%", "#ff6b3d", 0]].forEach(([o, c, a]) => mk("stop", { offset: o, "stop-color": c, "stop-opacity": a }, grad));
+  const shf = mk("filter", { id: UID + "shadow", x: "-5%", y: "-5%", width: "110%", height: "110%" }, defs);
+  mk("feDropShadow", { dx: 0, dy: 1.2, stdDeviation: 1.6, "flood-color": "#000", "flood-opacity": 0.28 }, shf);
+
+  const L = {};
+  ["ground", "building", "corr", "rooms", "heat", "crowd", "labels", "wts", "icons", "routes", "agents", "marks", "hz"].forEach(k => (L[k] = mk("g", { class: "m2-" + k }, svg)));
+
+  if (graph) {
+    mk("rect", { x: B.x0 - 500, y: B.z0 - 500, width: B.x1 - B.x0 + 1000, height: B.z1 - B.z0 + 1000, class: "g-bg" }, L.ground);
+    mk("text", { x: B.x0, y: B.z0 - 4, class: "m2-title" }, L.ground).textContent = `${FLOOR_NAME[FL]} · navigation graph · weight on each edge (1 = 10 m)${FL ? " · estimated weights" : ""}`;
+  } else if (FL) {
+    mk("rect", { x: B.x0 - 500, y: B.z0 - 500, width: B.x1 - B.x0 + 1000, height: B.z1 - B.z0 + 1000, class: "m2-void" }, L.ground);
+  } else {
+  /* ---- ground: grass, ring road, gate, parking, sports ground, trees ---- */
+    mk("rect", { x: E.x0 - 500, y: E.z0 - 500, width: E.x1 - E.x0 + 1000, height: E.z1 - E.z0 + 1000, class: "m2-grass" }, L.ground);
+    const gs = side(MAIN_ENTRANCE), gn = NORMAL[gs], gt = TANGENT[gs], gate = edgePoint(MAIN_ENTRANCE, RING);
+    const gateFar = [gate[0] + gn[0] * 600, gate[1] + gn[1] * 600];
+    const ringD = `M${RR.x0 + 10} ${RR.z0} H${RR.x1 - 10} Q${RR.x1} ${RR.z0} ${RR.x1} ${RR.z0 + 10} V${RR.z1 - 10} Q${RR.x1} ${RR.z1} ${RR.x1 - 10} ${RR.z1} H${RR.x0 + 10} Q${RR.x0} ${RR.z1} ${RR.x0} ${RR.z1 - 10} V${RR.z0 + 10} Q${RR.x0} ${RR.z0} ${RR.x0 + 10} ${RR.z0} Z`;
+    const gateD = `M${f2(gate[0])} ${f2(gate[1])} L${f2(gateFar[0])} ${f2(gateFar[1])}`;
+    [ringD, gateD].forEach(d => mk("path", { d, class: "m2-road-edge" }, L.ground));
+    [ringD, gateD].forEach(d => mk("path", { d, class: "m2-road" }, L.ground));
+    [ringD, gateD].forEach(d => mk("path", { d, class: "m2-lane" }, L.ground));
+    const gl = [gate[0] + gn[0] * 48, gate[1] + gn[1] * 48];
+    const gateBar = mk("g", { transform: `translate(${f2(gl[0])} ${f2(gl[1])})` }, L.ground);
+    mk("rect", { x: -6, y: -6, width: 12, height: 12, rx: 2, class: "m2-gate" }, gateBar);
+    mk("text", { x: 0, y: 1.3, class: "m2-gate-t" }, gateBar).textContent = "GATE";
+    const gtl = mk("text", { x: f2(gl[0] + gt[0] * 14), y: f2(gl[1] + gt[1] * 14 + 1), class: "m2-label" }, L.ground); gtl.textContent = "Main Gate";
+  
+    // parking beside the gate road, outside the ring
+    const pc = [gate[0] + gn[0] * 30 + gt[0] * 30, gate[1] + gn[1] * 30 + gt[1] * 30];
+    const pw = gn[0] ? 24 : 40, ph = gn[0] ? 40 : 24;
+    const P = { x0: pc[0] - pw / 2, z0: pc[1] - ph / 2, x1: pc[0] + pw / 2, z1: pc[1] + ph / 2 };
+    mk("rect", { x: P.x0, y: P.z0, width: pw, height: ph, rx: 1.5, class: "m2-park" }, L.ground);
+    for (let i = 1; i < 10; i++) {
+      if (gn[0]) mk("line", { x1: P.x0 + 1, x2: P.x1 - 1, y1: P.z0 + i * ph / 10, y2: P.z0 + i * ph / 10, class: "m2-stripe" }, L.ground);
+      else mk("line", { y1: P.z0 + 1, y2: P.z1 - 1, x1: P.x0 + i * pw / 10, x2: P.x0 + i * pw / 10, class: "m2-stripe" }, L.ground);
+    }
+    mk("text", { x: f2(pc[0]), y: f2(pc[1] + 1.4), class: "m2-park-t" }, L.ground).textContent = "P";
+  
+    // sports ground on the far side of the ring road
+    const os = OPP[gs], on = NORMAL[os];
+    const mid = [(RR.x0 + RR.x1) / 2, (RR.z0 + RR.z1) / 2];
+    const fc = [os === "W" ? RR.x0 - 40 : os === "E" ? RR.x1 + 40 : mid[0], os === "N" ? RR.z0 - 36 : os === "S" ? RR.z1 + 36 : mid[1]];
+    const fw = on[0] ? 46 : 74, fh = on[0] ? 74 : 46;
+    const F = { x0: fc[0] - fw / 2, z0: fc[1] - fh / 2, x1: fc[0] + fw / 2, z1: fc[1] + fh / 2 };
+    mk("rect", { x: F.x0, y: F.z0, width: fw, height: fh, rx: 2, class: "m2-field" }, L.ground);
+    if (on[0]) mk("line", { x1: F.x0, x2: F.x1, y1: fc[1], y2: fc[1], class: "m2-field-l" }, L.ground);
+    else mk("line", { y1: F.z0, y2: F.z1, x1: fc[0], x2: fc[0], class: "m2-field-l" }, L.ground);
+    mk("circle", { cx: fc[0], cy: fc[1], r: 7, class: "m2-field-l" }, L.ground);
+    mk("text", { x: f2(fc[0]), y: f2((on[0] ? F.z1 : F.z1) + 5), class: "m2-label" }, L.ground).textContent = "Sports ground";
+  
+    // trees (deterministic)
+    let seed = 20261102; const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+    const inRect = (x, z, r, m) => x > r.x0 - m && x < r.x1 + m && z > r.z0 - m && z < r.z1 + m;
+    const ringDist = (x, z) => {
+      const inside = inRect(x, z, RR, 0);
+      if (inside) return Math.min(x - RR.x0, RR.x1 - x, z - RR.z0, RR.z1 - z);
+      const dx = Math.max(RR.x0 - x, 0, x - RR.x1), dz = Math.max(RR.z0 - z, 0, z - RR.z1); return Math.hypot(dx, dz);
+    };
+    const exitPts = FNODES.filter(isExit).map(n => ({ id: n.id, a: edgePoint(n.id, 13) }));
+    for (let i = 0; i < 520; i++) {
+      const x = E.x0 + rnd() * (E.x1 - E.x0), z = E.z0 + rnd() * (E.z1 - E.z0), r = 1.8 + rnd() * 1.8;
+      if (inRect(x, z, B, 4) || ringDist(x, z) < 8 || inRect(x, z, P, 5) || inRect(x, z, F, 5)) continue;
+      const rel = [x - gate[0], z - gate[1]], along = rel[0] * gn[0] + rel[1] * gn[1], across = rel[0] * gt[0] + rel[1] * gt[1];
+      if (along > -3 && Math.abs(across) < 9) continue;
+      if (exitPts.some(e => Math.hypot(x - e.a[0], z - e.a[1]) < 9)) continue;
+      mk("circle", { cx: f2(x), cy: f2(z), r: f2(r), class: "m2-tree" }, L.ground);
+    }
+    // footpaths + assembly points outside each exit
+    exitPts.forEach(e => {
+      const r = ROOMS[e.id];
+      mk("path", { d: `M${r[0]} ${r[1]} L${f2(e.a[0])} ${f2(e.a[1])}`, class: "m2-path" }, L.ground);
+      const g = mk("g", { transform: `translate(${f2(e.a[0])} ${f2(e.a[1])})` }, L.ground);
+      mk("circle", { r: 4, class: "m2-asm" }, g);
+      mk("text", { y: 1.3, class: "m2-asm-t" }, g).textContent = "A";
+      mk("text", { y: 7.4, class: "m2-small" }, g).textContent = "Assembly point";
+    });
+  }
+
+  /* ---- building, corridors ---- */
+  if (!graph) {
+    mk("rect", { x: B.x0, y: B.z0, width: B.x1 - B.x0, height: B.z1 - B.z0, rx: 3, class: "m2-bld", filter: `url(#${UID}shadow)` }, L.building);
+    mk("text", { x: B.x0 + 1, y: B.z0 - 3, class: "m2-title" }, L.building).textContent = "Academic Block · " + FLOOR_NAME[FL] + (FL ? " (estimated corridor lengths)" : "");
+  }
+  const corrs = FEDGES.map(([a, b]) => ({ a, b, el: mk("line", { x1: BOX[a][0], y1: BOX[a][1], x2: BOX[b][0], y2: BOX[b][1], class: graph ? "m2-corr g-edge" : "m2-corr" }, L.corr) }));
+  // corridor weight pills, placed on the visible part of each corridor (between the two room walls)
+  const UNIT = GRAPH.metresPerUnit || 1;
+  const pills = FEDGES.map(([a, b, w]) => {
+    const ra = BOX[a], rb = BOX[b], dx = rb[0] - ra[0], dz = rb[1] - ra[1];
+    const lim = (W, D) => Math.min(Math.abs(dx) > 1e-6 ? W / 2 / Math.abs(dx) : Infinity, Math.abs(dz) > 1e-6 ? D / 2 / Math.abs(dz) : Infinity);
+    const t0 = lim(ra[2], ra[3]), t1 = 1 - lim(rb[2], rb[3]), t = t1 > t0 ? (t0 + t1) / 2 : 0.5;
+    const g = mk("g", { transform: `translate(${f2(ra[0] + dx * t)} ${f2(ra[1] + dz * t)})${graph ? " scale(1.65)" : ""}`, class: "m2-w" }, L.wts);
+    const label = String(Math.round(w / UNIT * 10) / 10);
+    mk("rect", { x: f2(-1.1 - label.length * 0.55), y: -1.35, width: f2(2.2 + label.length * 1.1), height: 2.7, rx: 1.35 }, g);
+    mk("text", { y: 0.8 }, g).textContent = label;
+    return g;
+  });
+
+  /* ---- rooms ---- */
+  const ICON = {
+    STAIRS: g => mk("path", { d: "M-1.1 0.9 h0.75 v-0.6 h0.7 v-0.6 h0.75 v-0.6", class: "ig" }, g),
+    LIFT: g => mk("path", { d: "M-0.5 -0.2 L0 -1 L0.5 -0.2 Z M-0.5 0.2 L0 1 L0.5 0.2 Z", class: "ig", fill: "currentColor" }, g),
+    TOILET: g => (mk("text", { y: 0.55, class: "igt" }, g).textContent = "WC"),
+    ROOM: g => mk("path", { d: "M-0.35 -1 h0.7 v0.65 h0.65 v0.7 h-0.65 v0.65 h-0.7 v-0.65 h-0.65 v-0.7 h0.65 Z", fill: "#e5484d" }, g),
+    OFFICE: g => (mk("text", { y: 0.6, class: "igt" }, g).textContent = "i"),
+    EXIT: g => mk("path", { d: "M-1 0 H0.8 M0.2 -0.6 L0.9 0 L0.2 0.6", class: "ig", stroke: "#fff" }, g),
+    ENTRANCE: g => mk("path", { d: "M-1 0 H0.8 M0.2 -0.6 L0.9 0 L0.2 0.6", class: "ig", stroke: "#fff" }, g),
+    LAB: g => mk("path", { d: "M-0.3 -1 V-0.2 L-0.9 0.9 H0.9 L0.3 -0.2 V-1", class: "ig" }, g)
+  };
+  const rooms = new Map();
+  FNODES.forEach(n => {
+    const [x, z, w, d] = BOX[n.id], c = graph ? GCOL[n.type] : hex(TYPE[n.type].c), ex = isExit(n);
+    const g = mk("g", { class: "room" + (ex ? " exit" : "") + (n.type === "JUNCTION" && !graph ? " junction" : ""), "data-id": n.id,
+                         tabindex: 0, role: "button", "aria-label": `${n.name}, room ${n.id}` }, L.rooms);
+    const box = { x: f2(x - w / 2), y: f2(z - d / 2), width: f2(w), height: f2(d), rx: 1.2 };
+    const shape = graph ? (a, p) => mk("circle", Object.assign({ cx: f2(x), cy: f2(z), r: NR }, a), p) : (a, p) => mk("rect", Object.assign({}, box, a), p);
+    const base = shape({ fill: c, stroke: graph ? "" : c, class: graph ? "rb gnode" : "rb" }, g);
+    const risk = shape({ fill: "#ff3b57", "fill-opacity": 0, class: "rr" }, g);
+    const hat = shape({ fill: `url(#${UID}hatch)`, visibility: "hidden" }, g);
+    const sel = graph ? mk("circle", { cx: f2(x), cy: f2(z), r: NR + 1.8, class: "rsel", visibility: "hidden" }, L.marks)
+                      : mk("rect", { x: f2(x - w / 2 - 1.3), y: f2(z - d / 2 - 1.3), width: f2(w + 2.6), height: f2(d + 2.6), rx: 2.2, class: "rsel", visibility: "hidden" }, L.marks);
+    const heat = mk("circle", { cx: x, cy: z, r: 1, fill: `url(#${UID}heat)`, visibility: "hidden" }, L.heat);
+    let s2 = n.id * 7919 + 13; const r2 = () => ((s2 = (s2 * 16807) % 2147483647) / 2147483647);
+    const dots = []; for (let i = 0; i < 24; i++) {
+      const ang = r2() * Math.PI * 2, rad = NR + 1.2 + r2() * 3.2;
+      const cx = graph ? x + Math.cos(ang) * rad : x + (r2() - 0.5) * (w - 2.4), cy = graph ? z + Math.sin(ang) * rad : z + (r2() - 0.5) * (d - 2.4);
+      dots.push(mk("circle", { cx: f2(cx), cy: f2(cy), r: graph ? 0.6 : 0.75, class: "dot", visibility: "hidden" }, L.crowd));
+    }
+
+    // label (wrapped to two lines when long)
+    const name = ex ? "EXIT" : n.name; let lines = [name];
+    if (name.length > 11 && name.includes(" ")) {
+      const m = name.length / 2; let best = -1;
+      for (let i = 0; i < name.length; i++) if (name[i] === " " && (best < 0 || Math.abs(i - m) < Math.abs(best - m))) best = i;
+      lines = [name.slice(0, best), name.slice(best + 1)];
+    }
+    const longest = Math.max(...lines.map(l => l.length));
+    const fs = Math.max(1.3, Math.min(3.4, (w * 0.86) / (longest * 0.6), d / (lines.length * 1.3 + 1.4)));
+    let t;
+    if (graph) {
+      mk("text", { x: f2(x), y: f2(z + 1.45), class: "gnum" }, L.labels).textContent = n.id;
+      t = mk("text", { x: f2(x), y: f2(z + NR + 3), class: "gname" }, L.labels); t.textContent = n.name;
+    } else {
+      t = mk("text", { x: f2(x), y: f2(z), "font-size": f2(fs), class: "rl" + (ex ? " ex" : "") }, L.labels);
+      lines.forEach((l, i) => { const ts = mk("tspan", { x: f2(x), dy: f2(i === 0 ? fs * 0.36 - (lines.length - 1) * fs * 0.55 : fs * 1.1) }, t); ts.textContent = l; });
+    }
+
+    if (!graph && ICON[n.type] && Math.min(w, d) >= 7) {
+      const ig = mk("g", { transform: `translate(${f2(x - w / 2 + 2.3)} ${f2(z - d / 2 + 2.3)}) scale(1.15)` }, L.icons);
+      mk("circle", { r: 1.55, class: "ib" + (ex ? " ibx" : "") }, ig); ICON[n.type](ig);
+    }
+
+    // hazard icons
+    const sc = graph ? 0.9 : Math.max(0.8, Math.min(1.7, Math.min(w, d) / 11));
+    const hz = mk("g", { transform: `translate(${f2(graph ? x + NR * 0.9 : x)} ${f2(graph ? z - NR * 0.9 : z - d / 2)}) scale(${f2(sc)})` }, L.hz);  // badge on the top edge, clear of the name
+    const fire = mk("g", { visibility: "hidden" }, hz);
+    mk("path", { d: "M0 3.2 C-2.6 3.2 -3.2 0.8 -2 -1 C-1.6 0.2 -0.8 0.4 -0.6 -0.2 C-1 -1.8 0 -3.4 1 -4 C0.8 -2.4 2.6 -1.4 2.6 0.6 C2.6 2.2 1.6 3.2 0 3.2 Z", fill: "#ff6a1a", stroke: "#fff", "stroke-width": 0.35, class: "flame" }, fire);
+    mk("path", { d: "M0 2.8 C-1.2 2.8 -1.5 1.6 -0.9 0.6 C-0.6 1.2 0 1.2 0.1 0.7 C0 0 0.4 -0.6 0.9 -1 C0.9 0 1.4 0.6 1.4 1.5 C1.4 2.3 0.8 2.8 0 2.8 Z", fill: "#ffd23a", class: "flame" }, fire);
+    const med = mk("g", { visibility: "hidden" }, hz);
+    mk("circle", { r: 3.2, class: "pulse", stroke: "#4da6ff" }, med);
+    mk("circle", { r: 2.6, fill: "#fff", stroke: "#4da6ff", "stroke-width": 0.5 }, med);
+    mk("path", { d: "M-0.45 -1.6 h0.9 v1.15 h1.15 v0.9 h-1.15 v1.15 h-0.9 v-1.15 h-1.15 v-0.9 h1.15 Z", fill: "#e5484d" }, med);
+    const sec = mk("g", { visibility: "hidden" }, hz);
+    mk("circle", { r: 3.4, class: "pulse", stroke: "#b06cff" }, sec);
+    mk("path", { d: "M0 -2.9 L2.5 -1.45 L2.5 1.45 L0 2.9 L-2.5 1.45 L-2.5 -1.45 Z", fill: "#8b5cf6", stroke: "#fff", "stroke-width": 0.4 }, sec);
+    mk("text", { y: 1.15, class: "m2-sec-t" }, sec).textContent = "!";
+
+    rooms.set(n.id, { n, x, z, w, d, base, risk, hat, sel, heat, dots, t, fire, med, sec });
+  });
+
+  // consecutive stretches of a path that are on this floor
+  function runsOnFloor(path) {
+    const runs = []; let cur = [];
+    path.forEach(id => { if (BOX[id]) cur.push(id); else if (cur.length) { runs.push(cur); cur = []; } });
+    if (cur.length) runs.push(cur);
+    return runs;
+  }
+  // stairs / lifts: show where they lead (or that they are not linked yet)
+  if (FLOORS.length > 1) FNODES.filter(n => n.type === "STAIRS" || n.type === "LIFT").forEach(n => {
+    const to = LINKS.filter(([a]) => a === n.id).map(([, b]) => floorOf(b));
+    const [x, z, w, d] = BOX[n.id];
+    const label = to.length ? to.map(f => (f < FL ? "↓ " : "↑ ") + FLOOR_SHORT[f]).join(" ") : "not linked";
+    const g = mk("g", { transform: `translate(${f2(x + (graph ? NR + 1 : w / 2))} ${f2(z + (graph ? NR + 1 : d / 2))})`, class: "m2-link" + (to.length ? "" : " none") }, L.icons);
+    mk("rect", { x: -0.6, y: -1.4, width: f2(label.length * 1.15 + 1.8), height: 2.8, rx: 1.4 }, g);
+    mk("text", { x: 0.3, y: 0.75 }, g).textContent = label;
+  });
+
+  /* ---- pins ---- */
+  function pin(color, letter) {
+    const g = mk("g", { class: "m2-pin", visibility: "hidden" }, L.marks);
+    mk("path", { d: "M0 0 C-1.6 -2.6 -3.4 -4 -3.4 -6.2 A3.4 3.4 0 1 1 3.4 -6.2 C3.4 -4 1.6 -2.6 0 0 Z", fill: color, stroke: "#fff", "stroke-width": 0.6 }, g);
+    mk("text", { y: -5.1 }, g).textContent = letter;
+    return g;
+  }
+  const pinA = pin("#16a36b", "A"), pinB = pin("#0b8fd6", "B");
+
+  /* ---- labels ---- */
+  let labelMode = "all", highlight = new Set(), selIds = new Set(), alertIds = new Set();
+  function updateLabels() {
+    rooms.forEach((o, id) => {
+      const show = labelMode === "all" || (labelMode === "key" && (isExit(o.n) || o.n.type === "HALL" || highlight.has(id) || selIds.has(id) || alertIds.has(id)));
+      o.t.setAttribute("visibility", show ? "visible" : "hidden");
+    });
+    pills.forEach(p => p.setAttribute("visibility", labelMode === "off" ? "hidden" : "visible"));
+  }
+  api.cycleLabels = () => { labelMode = labelMode === "all" ? "key" : labelMode === "key" ? "off" : "all"; updateLabels(); return labelMode; };
+  api.toggleSpin = () => false;
+  api.applyTheme = () => {};
+
+  /* ---- state ---- */
+  api.refresh = emergencies => {
+    alertIds = new Set();
+    rooms.forEach((o, id) => {
+      const nd = nodeById.get(id), heat = Math.min(1, nd.risk / 10);
+      o.risk.setAttribute("fill-opacity", f2(heat * 0.55));
+      o.hat.setAttribute("visibility", nd.blocked ? "visible" : "hidden");
+      o.base.classList.toggle("blocked", nd.blocked);
+      o.heat.setAttribute("visibility", nd.risk > 0.05 ? "visible" : "hidden");
+      o.heat.setAttribute("r", f2(Math.max(o.w, o.d) * 0.55 + nd.risk * 2.6)); o.heat.setAttribute("opacity", f2(heat));
+      const k = Math.round(Math.min(10, nd.congestion) * 2.4);
+      o.dots.forEach((c, i) => c.setAttribute("visibility", i < k ? "visible" : "hidden"));
+      [o.fire, o.med, o.sec].forEach(h => h.setAttribute("visibility", "hidden"));
+    });
+    emergencies.forEach(e => {
+      if (e.status === "RESOLVED") return;
+      const o = rooms.get(e.loc); if (!o) return; alertIds.add(e.loc);
+      (e.type === "fire" ? o.fire : e.type === "medical" ? o.med : o.sec).setAttribute("visibility", "visible");
+    });
+    corrs.forEach(c => {
+      const a = nodeById.get(c.a), b = nodeById.get(c.b), r = Math.max(a.risk, b.risk);
+      c.el.classList.toggle("blk", a.blocked || b.blocked);
+      if (r > 0.4) c.el.style.stroke = `rgba(255,59,87,${f2(0.25 + Math.min(1, r / 8) * 0.6)})`; else c.el.style.stroke = "";
+    });
+    updateLabels();
+  };
+  api.setSel = (from, to, sel) => {
+    [[pinA, from], [pinB, to]].forEach(([p, id]) => {
+      p.setAttribute("visibility", id ? "visible" : "hidden");
+      if (id && !BOX[id]) { p.setAttribute("visibility", "hidden"); return; }     // that place is on another floor
+      if (id) p.setAttribute("transform", `translate(${f2(BOX[id][0])} ${f2(BOX[id][1])})`);
+    });
+    rooms.forEach((o, id) => o.sel.setAttribute("visibility", id === sel ? "visible" : "hidden"));
+    selIds = new Set([from, to, sel].filter(Boolean)); updateLabels();
+  };
+
+  /* ---- routes + drill agents ---- */
+  let runners = [], agents = [], agentWait = 0;
+  api.setRoutes = list => {
+    while (L.routes.firstChild) L.routes.removeChild(L.routes.firstChild);
+    runners = []; highlight = new Set();
+    list.forEach((r, i) => {
+      r.path.forEach(id => highlight.add(id));
+      const col = hex(r.color);
+      runsOnFloor(r.path).forEach(run => {
+        const pts = run.map(id => [BOX[id][0] + i * 1.6, BOX[id][1] + i * 1.6]);
+        if (pts.length > 1) {
+          const d = "M" + pts.map(p => f2(p[0]) + " " + f2(p[1])).join(" L");
+          mk("path", { d, class: "rcase" }, L.routes);
+          mk("path", { d, class: "rline", stroke: col }, L.routes);
+          mk("path", { d, class: "rflow" }, L.routes);
+        }
+        pts.forEach(p => mk("circle", { cx: f2(p[0]), cy: f2(p[1]), r: 1, fill: col, stroke: "#fff", "stroke-width": 0.4 }, L.routes));
+        if (pts.length > 1) runners.push({ poly: poly2(pts), dot: mk("circle", { r: 1.7, class: "rdot", fill: col }, L.routes), d: -i * 12 });
+      });
+      // where the route leaves this floor: a badge saying which way to go
+      for (let k = 0; k + 1 < r.path.length; k++) {
+        const a = r.path[k], b = r.path[k + 1];
+        if (floorOf(a) === floorOf(b) || !(BOX[a] || BOX[b])) continue;
+        const here = BOX[a] ? a : b, other = here === a ? b : a, down = floorOf(other) < FL;
+        const g = mk("g", { transform: `translate(${f2(BOX[here][0])} ${f2(BOX[here][1] - (graph ? NR + 5 : BOX[here][3] / 2 + 4))})`, class: "m2-floorgo" }, L.routes);
+        const txt = here === a ? `${down ? "↓ Go down to" : "↑ Go up to"} ${FLOOR_NAME[floorOf(other)]}` : `Arrive from ${FLOOR_NAME[floorOf(other)]}`;
+        mk("rect", { x: f2(-txt.length * 0.75 - 1.5), y: -2.4, width: f2(txt.length * 1.5 + 3), height: 4.4, rx: 2.2, fill: col }, g);
+        mk("text", { y: 0.85 }, g).textContent = txt;
+      }
+    });
+    updateLabels();
+  };
+  api.setAgents = list => {
+    while (L.agents.firstChild) L.agents.removeChild(L.agents.firstChild);
+    agents = []; agentWait = 0;
+    list.forEach(a => runsOnFloor(a.path).forEach(run => {
+      if (run.length < 2) return;
+      agents.push({ poly: poly2(run.map(id => [BOX[id][0], BOX[id][1]])), d: 0, speed: 26 + Math.random() * 6,
+        c: mk("circle", { r: f2(a.size * 1.15), fill: hex(a.color), class: "agent" }, L.agents) });
+    }));
+  };
+
+  /* ---- view box: pan / zoom ---- */
+  const FIT = graph ? { x: B.x0 - 6, y: B.z0 - 12, w: B.x1 - B.x0 + 12, h: B.z1 - B.z0 + 18 } : FL ? { x: B.x0 - 8, y: B.z0 - 12, w: B.x1 - B.x0 + 16, h: B.z1 - B.z0 + 20 } : { x: RR.x0 - 24, y: RR.z0 - 24, w: RR.x1 - RR.x0 + 48, h: RR.z1 - RR.z0 + 48 };
+  const MAXW = (E.x1 - E.x0) * 1.5, MINW = 28;
+  let vb = { x: FIT.x, y: FIT.y, w: FIT.w, h: FIT.h }, tgt = Object.assign({}, vb), fitted = false;
+  const rect = () => svg.getBoundingClientRect();
+  // Free screen area not covered by the side panel (desktop) or bottom sheet (phone) and top bar.
+  function freeArea(r) {
+    const pe = document.getElementById("panel"), pr = pe && pe.getBoundingClientRect ? pe.getBoundingClientRect() : null;
+    const te = document.getElementById("top"), tr = te && te.getBoundingClientRect ? te.getBoundingClientRect() : null;
+    let l = 0, t = tr && tr.height && tr.height < r.height * 0.4 ? Math.max(0, tr.bottom - r.top + 6) : 64, bt = 0;
+    if (pr && pr.width && pr.width < r.width * 0.6) l = Math.max(0, pr.right - r.left + 8);
+    else if (pr && pr.height && pr.top > r.top + r.height * 0.3) bt = Math.max(0, r.bottom - pr.top + 8);
+    // in the graph view keep the nodes clear of the open legend as well
+    let rt = 12;
+    const lg = graph && document.getElementById("legend"), lr = lg && lg.open && lg.getBoundingClientRect ? lg.getBoundingClientRect() : null;
+    if (lr && lr.width && lr.width < r.width * 0.4) rt = Math.max(rt, r.right - lr.left + 8);
+    return { l, t, aw: Math.max(80, r.width - l - rt), ah: Math.max(80, r.height - t - bt - 8) };
+  }
+  function shape(b) {
+    const r = rect(); if (!r.width || !r.height) return Object.assign({}, b);
+    const fa = freeArea(r), s = Math.max(b.w / fa.aw, b.h / fa.ah), cx = b.x + b.w / 2, cy = b.y + b.h / 2;
+    return { x: cx - (fa.l + fa.aw / 2) * s, y: cy - (fa.t + fa.ah / 2) * s, w: r.width * s, h: r.height * s };
+  }
+  function clampBox(b) {
+    const cx = Math.max(E.x0, Math.min(E.x1, b.x + b.w / 2)), cy = Math.max(E.z0, Math.min(E.z1, b.y + b.h / 2));
+    b.x = cx - b.w / 2; b.y = cy - b.h / 2; return b;
+  }
+  function zoomAt(f, cx, cy, animate) {
+    const r = rect(); if (!r.width) return;
+    const base = animate ? tgt : vb;
+    const px = base.x + (cx - r.left) / r.width * base.w, py = base.y + (cy - r.top) / r.height * base.h;
+    const nw = Math.max(MINW, Math.min(MAXW, base.w * f)), k = nw / base.w;
+    const nb = clampBox({ x: px - (px - base.x) * k, y: py - (py - base.y) * k, w: nw, h: base.h * k });
+    if (animate) tgt = nb; else { vb = nb; tgt = Object.assign({}, nb); }
+  }
+  function pan(dx, dy) {
+    const r = rect(); if (!r.width) return;
+    vb.x -= dx * vb.w / r.width; vb.y -= dy * vb.h / r.height; clampBox(vb); tgt = Object.assign({}, vb);
+  }
+  api.preset = () => { tgt = shape(FIT); };
+  api.zoomBy = f => { const r = rect(); zoomAt(f, r.left + r.width / 2, r.top + r.height / 2, true); };
+  api.frame = ids => {
+    ids = (ids || []).filter(id => BOX[id]);                 // only places on this floor
+    if (!ids.length) return api.preset();
+    let x0 = Infinity, x1 = -Infinity, z0 = Infinity, z1 = -Infinity;
+    ids.forEach(id => { const r = BOX[id]; x0 = Math.min(x0, r[0] - r[2] / 2); x1 = Math.max(x1, r[0] + r[2] / 2); z0 = Math.min(z0, r[1] - r[3] / 2); z1 = Math.max(z1, r[1] + r[3] / 2); });
+    const m = graph ? 12 : 16; tgt = shape({ x: x0 - m, y: z0 - m, w: Math.max(graph ? 120 : 170, x1 - x0 + 2 * m), h: Math.max(graph ? 70 : 100, z1 - z0 + 2 * m) });
+  };
+  function resize() {
+    const r = rect(); if (!r.width || !r.height) return;
+    if (!fitted) { vb = shape(FIT); tgt = Object.assign({}, vb); fitted = true; }
+    [vb, tgt].forEach(b => { const cy = b.y + b.h / 2; b.h = b.w * r.height / r.width; b.y = cy - b.h / 2; });
+    svg.setAttribute("viewBox", `${f2(vb.x)} ${f2(vb.y)} ${f2(vb.w)} ${f2(vb.h)}`);
+  }
+  new ResizeObserver(resize).observe(svg);
+
+  /* ---- pointer input ---- */
+  const ptrs = new Map(); let down = null, pinch = null;
+  const roomId = el => { const g = el && el.closest ? el.closest(".room") : null; return g ? +g.getAttribute("data-id") : null; };
+  svg.addEventListener("wheel", e => { e.preventDefault(); zoomAt(Math.exp(e.deltaY * 0.0015), e.clientX, e.clientY, false); }, { passive: false });
+  svg.addEventListener("dblclick", e => zoomAt(0.55, e.clientX, e.clientY, true));
+  svg.addEventListener("keydown", e => {                  // Enter / Space on a focused room selects it
+    if (e.key !== "Enter" && e.key !== " ") return;
+    const id = roomId(e.target); if (!id || !api.onPick) return;
+    e.preventDefault(); api.onPick(id);
+  });
+  svg.addEventListener("focusin", e => {                  // keep the focused room in view
+    const id = roomId(e.target); if (!id) return;
+    const b = BOX[id], r = rect(); if (!r.width) return;
+    if (b[0] < vb.x || b[0] > vb.x + vb.w || b[1] < vb.y || b[1] > vb.y + vb.h) api.frame([id]);
+  });
+  svg.addEventListener("pointerdown", e => {
+    try { svg.setPointerCapture(e.pointerId); } catch (_) {}
+    ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY, type: e.pointerType });
+    down = { t: performance.now(), moved: 0, id: roomId(e.target) }; pinch = null;
+  });
+  svg.addEventListener("pointermove", e => {
+    const p = ptrs.get(e.pointerId);
+    if (!p) { if (e.pointerType === "mouse" && api.onHover) api.onHover(roomId(e.target), e.clientX, e.clientY); return; }
+    const dx = e.clientX - p.x, dy = e.clientY - p.y; p.x = e.clientX; p.y = e.clientY;
+    if (down) down.moved += Math.abs(dx) + Math.abs(dy);
+    if (ptrs.size === 1) pan(dx, dy);
+    else if (ptrs.size === 2) {
+      const [a, b] = [...ptrs.values()], d = Math.hypot(a.x - b.x, a.y - b.y), cx = (a.x + b.x) / 2, cy = (a.y + b.y) / 2;
+      if (pinch) { zoomAt(pinch.d / Math.max(d, 1), cx, cy, false); pan(cx - pinch.cx, cy - pinch.cy); }
+      pinch = { d, cx, cy };
+    }
+  });
+  const end = e => {
+    if (e.type === "pointerup" && ptrs.size === 1 && down && down.moved < 7 && performance.now() - down.t < 600 && down.id && api.onPick) api.onPick(down.id);
+    ptrs.delete(e.pointerId); pinch = null; if (!ptrs.size) down = null;
+  };
+  svg.addEventListener("pointerup", end); svg.addEventListener("pointercancel", end);
+  svg.addEventListener("pointerleave", () => { if (api.onHover && !ptrs.size) api.onHover(null); });
+
+  /* ---- animation loop (only while visible) ---- */
+  let raf = 0, last = 0;
+  function tick(ts) {
+    raf = requestAnimationFrame(tick);
+    const dt = Math.min(0.05, last ? (ts - last) / 1000 : 0.016); last = ts;
+    const k = 1 - Math.exp(-dt * 10);
+    vb.x += (tgt.x - vb.x) * k; vb.y += (tgt.y - vb.y) * k; vb.w += (tgt.w - vb.w) * k; vb.h += (tgt.h - vb.h) * k;
+    svg.setAttribute("viewBox", `${f2(vb.x)} ${f2(vb.y)} ${f2(vb.w)} ${f2(vb.h)}`);
+    runners.forEach(r => {
+      r.d += dt * 34; if (r.d > r.poly.total + 18) r.d = -6;
+      const p = r.poly.at(r.d); r.dot.setAttribute("cx", f2(p[0])); r.dot.setAttribute("cy", f2(p[1]));
+      r.dot.setAttribute("visibility", r.d >= 0 ? "visible" : "hidden");
+    });
+    if (agents.length) {
+      let alive = 0;
+      agents.forEach(a => {
+        a.d += dt * a.speed; const done = a.d >= a.poly.total;
+        a.c.setAttribute("visibility", done ? "hidden" : "visible");
+        if (!done) { alive++; const p = a.poly.at(a.d); a.c.setAttribute("cx", f2(p[0])); a.c.setAttribute("cy", f2(p[1])); }
+      });
+      if (!alive) { agentWait += dt; if (agentWait > 1.4) { agentWait = 0; agents.forEach(a => (a.d = 0)); } }
+    }
+  }
+  api.floor = FL;
+  api.setActive = on => {
+    svg.classList.toggle("active", !!on);
+    if (on && !raf) { resize(); last = 0; raf = requestAnimationFrame(tick); }
+    if (!on && raf) { cancelAnimationFrame(raf); raf = 0; }
+  };
+  return api;
+}
+
+// Campus RESQ UI · Shared helpers, app state, creation of the Map/Graph/3D views, view and floor switching
+"use strict";
+/* ===================== APP / UI ===================== */
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const nm = id => nodeById.get(id).name + (floorOf(id) ? ` (${FLOOR_SHORT[floorOf(id)]})` : "");
+const fmt = v => (Math.round(v * 10) / 10).toString();
+const COLORS = { dijkstra: 0x4de1ff, bfs: 0xffb020, evac: 0x4de1ff, responder: 0xffb020 };
+const EXIT_COLORS = [0x3ddc97, 0x4de1ff, 0xffb020, 0xff6b9a, 0xb08cff];
+
+let view3d = null;
+try { view3d = createView($("gl")); } catch (err) { console.error(err); view3d = null; }
+const make2d = (kind, f) => { try { return createMap2D($("app"), kind, f); } catch (err) { console.error(err); return null; } };
+const FLAT = { "2d": FLOORS.map(f => make2d("map", f)), graph: FLOORS.map(f => make2d("graph", f)) };   // one SVG per view per floor
+const map2d = FLAT["2d"][0], graph2d = FLAT.graph[0];
+// hash: #map, #graph, #3d, optionally with a floor: #map-1f
+const parseHash = h => { const m = /^#(map|graph|3d)(?:-(\d)f)?$/.exec(h || ""); return m ? { mode: m[1] === "map" ? "2d" : m[1], floor: Math.min(+(m[2] || 0), FLOORS.length - 1) } : { mode: "2d", floor: 0 }; };
+const hashOf = (m, f) => "#" + (m === "2d" ? "map" : m) + (f ? `-${f}f` : "");
+let { mode, floor } = parseHash(location.hash);
+if (mode === "3d" && !view3d) mode = "2d";
+if (!view3d && !map2d && !graph2d) $("nogl").hidden = false;
+
+// One interface that forwards to both views, so they always show the same scenario.
+const view = (view3d || map2d) ? (() => {
+  const all = () => [view3d, ...FLAT["2d"], ...FLAT.graph].filter(Boolean);
+  const act = () => (mode === "3d" ? view3d : FLAT[mode][floor]) || map2d || graph2d || view3d;
+  const m = {};
+  ["setRoutes", "setAgents", "refresh", "setSel", "applyTheme", "preset", "frame"].forEach(k => (m[k] = (...args) => all().forEach(v => v[k](...args))));
+  m.cycleLabels = () => act().cycleLabels();
+  m.toggleSpin = () => act().toggleSpin();
+  Object.defineProperty(m, "onPick", { set: f => all().forEach(v => (v.onPick = f)) });
+  Object.defineProperty(m, "onHover", { set: f => all().forEach(v => (v.onHover = f)) });
+  return m;
+})() : null;
+
+const HINTS = { "2d": "drag to pan · scroll or pinch to zoom · double-click to zoom in · click a room", graph: "drag to pan · scroll or pinch to zoom · click a node", "3d": "drag orbit · right-drag pan · scroll zoom · click a room" };
+const flatView = () => FLAT[mode === "graph" ? "graph" : "2d"][floor];
+function setMode(m, quiet) {
+  if (m === "3d" && !view3d) { if (!quiet) toast("3D needs WebGL, which is not available here."); m = mode === "3d" ? "2d" : mode; }
+  if (m === "2d" && !map2d) m = graph2d ? "graph" : "3d";
+  if (m === "graph" && !graph2d) m = map2d ? "2d" : "3d";
+  mode = m;
+  applyViews();
+}
+function setFloor(f, quiet) {
+  if (!FLOORS.includes(f) || f === floor) return;
+  floor = f; applyViews();
+  if (!quiet) toast(`Showing the ${FLOOR_NAME[f].toLowerCase()}.`);
+}
+function applyViews() {
+  const m = mode;
+  const app = $("app");
+  app.classList.toggle("flat", m !== "3d"); app.classList.toggle("mode2d", m === "2d"); app.classList.toggle("modegraph", m === "graph");
+  $("modeSeg").querySelectorAll("button").forEach(b => b.classList.toggle("on", b.dataset.v === m));
+  $("hint").textContent = HINTS[m];
+  ["2d", "graph"].forEach(k => FLAT[k].forEach((v, f) => v && v.setActive(m === k && f === floor)));
+  if (view3d) { view3d.setActive(m === "3d"); view3d.setFloor(floor); }
+  $("floorSeg").querySelectorAll("button").forEach(b => b.classList.toggle("on", +b.dataset.v === floor));
+  $("tip").style.display = "none";
+  if (location.hash !== hashOf(m, floor)) location.hash = hashOf(m, floor);
+}
+
+const state = {
+  from: 10, to: 0, algo: "dijkstra", evac: false, a: 1, b: 2, g: 1.5,
+  tab: "help", view: "help", selected: null, nextPick: "from", helpPick: "you", help: null,
+  strat: "aware", type: "fire", hazardTouch: false, planFor: null, prevKey: null, crowdSeed: 7
+};
+const emergencies = []; let emSeq = 1;
+
+/* ---- tiny helpers ---- */
+function toast(msg, kind) {
+  const t = document.createElement("div"); t.className = "toast glass " + (kind || ""); t.textContent = msg;
+  $("toasts").appendChild(t); setTimeout(() => t.remove(), 3800);
+  while ($("toasts").children.length > 3) $("toasts").firstChild.remove();
+}
+function seg(id, cb) {
+  const el = $(id);
+  el.addEventListener("click", e => {
+    const b = e.target.closest("button"); if (!b) return;
+    el.querySelectorAll("button").forEach(x => x.classList.toggle("on", x === b)); cb(b.dataset.v);
+  });
+  return v => el.querySelectorAll("button").forEach(x => x.classList.toggle("on", x.dataset.v === v));
+}
+const opts = nodes => FLOORS.map(f => `<optgroup label="${FLOOR_NAME[f]}">` +
+  nodes.filter(n => (n.floor || 0) === f).map(n => `<option value="${n.id}">${f ? FLOOR_SHORT[f] + " · " : ""}${f ? n.id - 100 : n.id} · ${esc(n.name)}</option>`).join("") + `</optgroup>`).join("");
+const weighted = (r, o) => o.a * r.units + o.b * r.risk;          // backend cost (units); congestion is 0
+const currentOpt = () => ({ a: state.a, b: state.b, g: state.g, avoidLifts: state.evac });
+
+/* ---- populate ---- */
+$("selFrom").innerHTML = opts(GRAPH.nodes);
+$("selTo").innerHTML = `<option value="0">⚑ Nearest safe exit (auto)</option>` + opts(GRAPH.nodes);
+$("selLoc").innerHTML = opts(GRAPH.nodes);
+$("hYou").innerHTML = `<option value="">Choose your room…</option>` + opts(GRAPH.nodes);
+$("hAt").innerHTML = `<option value="0">Here, where I am</option>` + opts(GRAPH.nodes);
+$("selFrom").value = state.from; $("selLoc").value = 34;
+$("chipNodes").textContent = `${GRAPH.nodes.length} nodes · ${GRAPH.edges.length} links`;
+
+// Campus RESQ UI · Route tab: Dijkstra / BFS / compare
+"use strict";
+/* ---- routing views ---- */
+function planRoutes() {
+  const o = currentOpt(), algos = state.algo === "compare" ? ["dijkstra", "bfs"] : [state.algo], out = {};
+  algos.forEach(al => {
+    const fn = al === "dijkstra" ? (s, d) => dijkstra(s, d, o) : (s, d) => bfs(s, d, { evac: state.evac });
+    out[al] = state.to === 0 ? bestExit(fn, state.from) : fn(state.from, state.to);
+  });
+  return out;
+}
+
+function stepsHtml(path) {
+  return `<ol class="steps">` + path.map((id, i) => {
+    const n = nodeById.get(id), tags = [];
+    if (i > 0) tags.push(`<span class="tag">+${fmt(adj.get(path[i - 1]).find(e => e.to === id).w)} m</span>`);
+    if (i > 0 && floorOf(path[i - 1]) !== floorOf(id)) tags.unshift(`<span class="tag warn">${floorOf(id) < floorOf(path[i - 1]) ? "↓" : "↑"} ${FLOOR_NAME[floorOf(id)]}</span>`);
+    if (n.risk > 0.4) tags.push(`<span class="tag ${n.risk > 4 ? "bad" : "warn"}">risk ${fmt(n.risk)}</span>`);
+    if (n.congestion > 0.4) tags.push(`<span class="tag warn">crowd ${fmt(n.congestion)}</span>`);
+    if (isExit(n)) tags.push(`<span class="tag good">exit</span>`);
+    return `<li class="${n.risk > 4 ? "hot" : ""}">${esc(n.name)}${tags.join("")}</li>`;
+  }).join("") + `</ol>`;
+}
+function statsHtml(r) {
+  return `<div class="stats">
+    <div class="stat"><b>${fmt(r.distance)} m</b><span>distance</span></div>
+    <div class="stat"><b>${Math.round(r.distance / WALK)} s</b><span>walk time</span></div>
+    <div class="stat"><b>${r.hops}</b><span>hops</span></div>
+    <div class="stat"><b>${fmt(r.risk)}</b><span>risk</span></div>
+    <div class="stat"><b>${fmt(weighted(r, currentOpt()))}</b><span>cost</span></div></div>`;
+}
+
+function renderRoute() {
+  state.view = "route";
+  const res = planRoutes(), o = currentOpt(), draw = [], html = [];
+  const primary = res.dijkstra || res.bfs || null;
+  Object.entries(res).forEach(([al, r]) => {
+    const label = al === "dijkstra" ? "Dijkstra · risk-aware" : "BFS · fewest hops";
+    if (!r) { html.push(`<div class="card bad"><h4>${label}</h4>No safe route exists. Every path is blocked or leads through a lift in evacuation mode.</div>`); return; }
+    draw.push({ path: r.path, color: COLORS[al] });
+    html.push(`<div class="card"><h4><i class="swatch" style="background:#${COLORS[al].toString(16).padStart(6, "0")}"></i>${label}</h4>${statsHtml(r)}${stepsHtml(r.path)}</div>`);
+  });
+  if (res.dijkstra && res.bfs) {
+    const d = res.dijkstra, b = res.bfs, cd = weighted(d, o), cb = weighted(b, o);
+    const win = (x, y) => (x < y ? ["win", ""] : x > y ? ["", "win"] : ["", ""]);
+    const rows = [["Distance (m)", d.distance, b.distance], ["Risk", d.risk, b.risk], ["Crowd", d.congestion, b.congestion], ["Weighted cost", cd, cb]]
+      .map(([k, x, y]) => { const [wx, wy] = win(x, y); return `<tr><td>${k}</td><td class="${wx}">${fmt(x)}</td><td class="${wy}">${fmt(y)}</td></tr>`; }).join("");
+    html.push(`<div class="card"><h4>Head-to-head (same weights)</h4><table><tr><th></th><th>Dijkstra</th><th>BFS</th></tr>${rows}</table>
+      <p class="note">${cd < cb - 1e-9 ? `Dijkstra is ${fmt(cb - cd)} cost units cheaper here${d.distance < b.distance ? ` and ${fmt(b.distance - d.distance)} m shorter, even though BFS uses fewer hops` : ""}.` : cd === cb ? "Both routes cost the same in this scenario." : "BFS happens to win on this metric."}</p></div>`);
+  }
+  $("routeOut").innerHTML = html.join("") || `<p class="empty">Pick a start room.</p>`;
+
+  // react to hazard-driven changes
+  const key = primary ? primary.path.join(">") : "none";
+  if (state.hazardTouch) {
+    if (state.prevKey && state.prevKey !== "none" && key === "none") toast("No safe route remains from here.", "bad");
+    else if (state.prevKey && state.prevKey !== "none" && key !== state.prevKey) toast("Route updated to avoid the hazard.", "good");
+    state.hazardTouch = false;
+  }
+  state.prevKey = key;
+  if (view) {
+    view.setRoutes(draw);
+    view.setSel(state.from, primary ? primary.path[primary.path.length - 1] : (state.to || null), state.selected);
+  }
+}
+
+// Campus RESQ UI · Alerts tab: priority queue, dispatch and response plans
+"use strict";
+/* ---- alerts ---- */
+const SEV_COLOR = s => (s >= 8 ? "#ff4d6d" : s >= 5 ? "#ffb020" : "#ffd166");
+const TYPE_LABEL = { fire: "Fire", medical: "Medical", security: "Security" };
+const active = () => emergencies.filter(e => e.status !== "RESOLVED");
+// Same rule as EmergencyManager.cpp: priority = severity + dispatches since reported / 3; ties: reported first.
+// The backend's EmergencyManager: std::priority_queue ordered by severity (see StdPriorityQueue).
+let queue = new StdPriorityQueue();
+const pendingOrder = () => queue.order();
+
+function renderQueue() {
+  const list = pendingOrder(); save();
+  $("queue").innerHTML = list.length ? list.map((e, i) => `<li class="${i === 0 ? "next" : ""}">
+    <span class="sev" style="background:${SEV_COLOR(e.sev)}">${e.sev}</span>
+    <span class="meta"><b>${TYPE_LABEL[e.type]} · ${esc(nm(e.loc))}</b><span>#${e.id}${i === 0 ? " · next to dispatch" : " · waiting"}</span></span></li>`).join("")
+    : `<li class="empty">No pending emergencies.</li>`;
+  const n = active().length; $("badge").hidden = !n; $("badge").textContent = n;
+  $("chipStatus").classList.toggle("alert", n > 0); $("statusTxt").textContent = n ? `${n} ACTIVE` : "ALL CLEAR";
+  const handling = emergencies.filter(e => e.status === "HANDLING");
+  $("responseOut").innerHTML = handling.length ? handling.map(e => {
+    const p = makePlan(e), line = r => r ? r.path.map(nm).join(" → ") : "No safe route";
+    const resp = !p.responder ? "No safe way in from any outside door."
+      : p.responder.path.length === 1 ? (p.staged ? `Enter and wait at ${esc(nm(p.entry))}, right next to the scene.` : `Enter at ${esc(nm(p.entry))}; it opens onto the scene.`)
+      : `Enter at ${esc(nm(p.entry))}, then ${esc(p.responder.path.slice(1).map(nm).join(" → "))}`;
+    return `<div class="card ${p.evac || e.type !== "fire" ? "" : "bad"}"><h4><span class="sev" style="background:${SEV_COLOR(e.sev)};width:24px;height:24px;font-size:11px">${e.sev}</span>${TYPE_LABEL[e.type]} · ${esc(nm(e.loc))}</h4>
+      ${p.staged ? `<p class="note" style="margin:0 0 8px">The scene is blocked, so responders stop at ${esc(nm(p.staging))}, next to it.</p>` : ""}
+      <p style="margin:0 0 6px"><b style="color:var(--accent)">${p.medical ? "Patient to exit" : "Evacuation from the scene"}:</b> ${esc(line(p.evac))}${p.evac ? ` <span class="tag">${fmt(p.evac.distance)} m</span>` : ""}</p>
+      ${e.type !== "fire" ? `<p style="margin:0 0 6px"><b style="color:var(--warn)">Responders:</b> ${resp}${p.responder ? ` <span class="tag">${fmt(p.responder.distance)} m inside</span>` : ""}</p>` : ""}
+      <div class="btns"><button class="btn small" data-act="show" data-id="${e.id}">Show on map</button><button class="btn small primary" data-act="resolve" data-id="${e.id}">Resolve</button></div></div>`;
+  }).join("") : `<p class="empty">Nothing dispatched yet.</p>`;
+}
+
+function showPlan(e) {
+  state.view = "plan"; state.planFor = e.id; setFloor(floorOf(e.loc), true);
+  const p = makePlan(e), list = [];
+  if (p.evac) list.push({ path: p.evac.path, color: COLORS.evac });
+  if (p.responder) list.push({ path: p.responder.path, color: COLORS.responder });
+  if (view) {
+    view.setRoutes(list); view.setSel(p.responder ? p.entry : p.scene, p.evac ? p.evac.path[p.evac.path.length - 1] : null, e.loc);
+    view.frame([...new Set([e.loc, ...list.flatMap(l => l.path)])]);
+  }
+}
+
+// Campus RESQ UI · Drill tab: evacuation plan for every room
+"use strict";
+/* ---- drill ---- */
+let drillResults = null;
+function renderDrill() {
+  const cur = planDrill(); drillResults = cur;
+  const rows = [["Exits used", "exitsUsed", ""], ["Peak exit load", "peakExit", "people"], ["Peak corridor load", "peakTransit", "people"], ["Est. clearing time", "est", "s"], ["Avg walk", "avgDist", "m"]]
+    .map(([k, f, u]) => `<tr><td>${k}</td><td>${Math.round(cur[f])} ${u}</td></tr>`).join("");
+  const max = Math.max(1, ...cur.exitLoad.values());
+  const bars = exitIds().map((id, i) => { const v = cur.exitLoad.get(id) || 0; return `<div class="bar"><span>${id} · ${esc(nm(id).slice(0, 12))}</span><span class="track"><i style="width:${v / max * 100}%;background:#${EXIT_COLORS[i % 5].toString(16).padStart(6, "0")}"></i></span><b>${v}</b></div>`; }).join("");
+  $("drillOut").innerHTML = `<div class="card"><h4>Evacuation plan</h4><table>${rows}</table>
+    <p class="note">${GRAPH.nodes.filter(n => OCC[n.type]).reduce((s, n) => s + OCC[n.type], 0)} occupants (${Object.entries(OCC).map(([k, v]) => `${k.toLowerCase()} ${v}`).join(", ")}). Illustrative model: walking ${WALK} m/s, ${FLOW} people/s per doorway, ${cur.stranded} stranded.</p></div>
+    <div class="card"><h4>Exit load</h4>${bars}</div>`;
+  if (view) {
+    const exitIdx = new Map(exitIds().map((id, i) => [id, i]));
+    view.setAgents(cur.rows.map(r => ({ path: r.route.path, color: EXIT_COLORS[exitIdx.get(r.exit) % 5], size: 0.7 + Math.sqrt(r.g.people) * 0.18 })));
+    view.setRoutes([]); view.setSel(null, null, state.selected);
+  }
+}
+function setDrill(on) {
+  $("btnDrill").textContent = on ? "Stop drill" : "Run drill";
+  if (on) { state.view = "drill"; renderDrill(); if (view) view.preset("iso"); }
+  else { state.view = "route"; $("drillOut").innerHTML = ""; if (view) view.setAgents([]); refreshView(); }
+}
+
+// Campus RESQ UI · Saving and restoring state in this browser (localStorage)
+"use strict";
+/* ---- saved state (this browser only) ---- */
+const STORE_KEY = "campus-resq-newbackend-state-v1";
+let loading = false;
+function save() {
+  if (loading) return;
+  try {
+    localStorage.setItem(STORE_KEY, JSON.stringify({
+      v: 1, emSeq, queue: queue.c.map(e => e.id),
+      emergencies: emergencies.map(({ id, type, loc, sev, status }) => ({ id, type, loc, sev, status })),
+      rooms: [...nodeById.values()].filter(n => n.manualRisk || n.manualBlocked).map(n => [n.id, n.manualRisk, 0, n.manualBlocked]),
+      help: state.help, helpType: state.helpType, you: +$("hYou").value || null
+    }));
+  } catch (_) { /* storage unavailable: keep working without it */ }
+}
+function load() {
+  let d = null;
+  try { d = JSON.parse(localStorage.getItem(STORE_KEY) || "null"); } catch (_) { d = null; }
+  if (!d || d.v !== 1) return;
+  loading = true;
+  try {
+    const okType = t => t === "fire" || t === "security" || t === "medical";
+    (d.emergencies || []).forEach(e => {
+      if (okType(e.type) && nodeById.has(e.loc) && e.sev >= 1 && e.sev <= 10 && ["PENDING", "HANDLING", "RESOLVED"].includes(e.status))
+        emergencies.push({ id: e.id, type: e.type, loc: e.loc, sev: e.sev, status: e.status });
+    });
+    emSeq = Math.max(d.emSeq || 1, ...emergencies.map(e => e.id + 1), 1);
+    // restore the heap array exactly as it was, so the backend's pop order is unchanged
+    (d.queue || []).forEach(qid => { const e = emergencies.find(x => x.id === qid && x.status === "PENDING"); if (e && !queue.c.includes(e)) queue.c.push(e); });
+    emergencies.filter(e => e.status === "PENDING" && !queue.c.includes(e)).forEach(e => queue.push(e));
+    (d.rooms || []).forEach(([id, r, , b]) => { const n = nodeById.get(id); if (n) { n.manualRisk = level(r); n.manualBlocked = !!b; } });
+    if (d.you && nodeById.has(d.you)) $("hYou").value = d.you;
+    if (okType(d.helpType)) { state.helpType = d.helpType; setHelpType(d.helpType); }
+    if (d.help && nodeById.has(d.help.you) && nodeById.has(d.help.at) && okType(d.help.type)) {
+      state.help = d.help; $("hYou").value = d.help.you; $("hAt").value = d.help.at === d.help.you ? 0 : d.help.at;
+    }
+    if (emergencies.some(e => e.status !== "RESOLVED")) toast("Restored the alerts saved in this browser.");
+  } finally { loading = false; }
+}
+
+// Campus RESQ UI · Help tab: personal safest-path guide
+"use strict";
+/* ---- personal safety guide ---- */
+const HELP_SEV = { fire: 8, security: 7, medical: 6 };
+const ADVICE = {
+  fire: ["Do not use the lifts.", "Close doors behind you to slow the fire. If there is smoke, stay low.", "Once outside, go to the assembly point and wait for a head count."],
+  security: ["Move quickly and quietly, away from the threat. Do not go back for belongings.", "Once outside, keep moving away from the building and tell security where you saw the threat."],
+  medical: ["Call 112 for an ambulance if the person is unconscious, not breathing, or badly hurt.", "Do not move someone with a possible neck or back injury unless they are in danger."]
+};
+function startHelp() {
+  const you = +$("hYou").value; if (!you) { toast("Choose where you are first."); $("hYou").focus(); return; }
+  const at = +$("hAt").value || you, type = state.helpType || "fire";
+  // report it (once): reuse an active alert of the same type in the same room
+  let e = emergencies.find(x => x.status !== "RESOLVED" && x.type === type && x.loc === at);
+  if (!e) { e = { id: emSeq++, type, loc: at, sev: HELP_SEV[type], status: "PENDING" }; emergencies.push(e); queue.push(e); toast(`${TYPE_LABEL[type]} at ${nm(at)} reported to the command view.`, "bad"); }
+  state.help = { you, type, at }; state.view = "help";
+  applyHazards(emergencies); if (view) view.refresh(emergencies); renderQueue();
+  renderHelp(true);
+}
+function renderHelp(frame) {
+  save();
+  const h = state.help; if (!h) { $("helpOut").innerHTML = ""; if (view) { view.setRoutes([]); view.setSel(+$("hYou").value || null, null, null); } return; }
+  state.view = "help";
+  const g = guidePerson(h.you, h.type, h.at), you = nodeById.get(h.you);
+  const tips = ADVICE[h.type].slice();
+  let html;
+  if (!g.route) {
+    html = `<div class="guide danger"><span class="band b3"><i></i>NO SAFE WAY OUT</span>
+      <p class="go">Stay in ${esc(you.name)}</p>
+      <p class="sub">Every way out passes through the ${h.type === "fire" ? "fire" : "danger"} or a lift.</p>
+      <ul class="advice"><li>Close the door and block gaps with cloth.</li><li>Call 112 and say you are in ${esc(you.name)} (room ${you.id}).</li><li>Signal from a window if you can. Do not use the lifts.</li></ul></div>`;
+    if (view) { view.setRoutes([]); view.setSel(h.you, null, h.at); }
+    $("helpOut").innerHTML = html; return;
+  }
+  const dest = nodeById.get(g.destination), r = g.route, medical = h.type === "medical";
+  const already = r.path.length === 1;
+  const goText = medical ? (h.at === h.you ? "Stay where you are: help comes to you" : (already ? "You are with the patient" : `Go to ${esc(nm(h.at))} to help`))
+                         : (already ? "You are at an exit: go outside" : `Go to ${esc(dest.name)} (room ${dest.id})`);
+  const sub = medical ? (h.at === h.you ? "Call 112 and ask anyone nearby to stay with you." : "Someone needs help there.")
+                      : "Then walk to the green assembly point outside and wait.";
+  const steps = r.path.map((id, i) => {
+    const n = nodeById.get(id), b = safetyBand(n.risk);
+    const len = i ? ` <span class="tag">+${fmt(adj.get(r.path[i - 1]).find(e => e.to === id).w)} m</span>` : "";
+    const risk = i && b > 0 ? ` <span class="tag ${b >= 2 ? "warn" : ""}">${BAND_NAME[b].toLowerCase()}</span>` : "";
+    const fchange = i > 0 && floorOf(r.path[i - 1]) !== floorOf(id);
+    if (fchange) return `<li class="floorchg">${floorOf(id) < floorOf(r.path[i - 1]) ? "Go down" : "Go up"} the ${esc(nodeById.get(r.path[i - 1]).name.toLowerCase())} to the ${FLOOR_NAME[floorOf(id)].toLowerCase()} (${esc(n.name)})${len}</li>`;
+    const label = i === 0 ? `Leave ${esc(n.name)}` : i === r.path.length - 1 ? (medical || /^exit/i.test(n.name) ? `${esc(n.name)} (room ${n.id})` : `${esc(n.name)}, exit`) : esc(n.name);
+    return `<li class="${b >= 3 ? "hot" : ""}">${label}${risk}${len}</li>`;
+  }).join("");
+  let why = "";
+  if (g.shortest && g.shortestBand > g.band) {
+    const worst = g.shortest.path.slice(1).reduce((m, id) => (nodeById.get(id).risk > nodeById.get(m).risk ? id : m), g.shortest.path[1]);
+    why = `<p class="why">The shortest way (${fmt(g.shortest.distance)} m) passes ${esc(nm(worst))}, which is ${BAND_NAME[g.shortestBand].toLowerCase()}. This path avoids it${r.distance > g.shortest.distance ? `, for ${fmt(r.distance - g.shortest.distance)} m more walking` : ""}.</p>`;
+  } else if (!medical && !already) why = `<p class="why">This is also the shortest way out.</p>`;
+  const lobby = !medical && r.path.slice(1, -1).map(id => nodeById.get(id)).find(n => n.type === "LIFT");
+  if (lobby) tips.unshift(`Your path passes the ${lobby.name} lobby: walk past it, do not take the lift.`);
+  if (h.type === "security" && g.band >= 2 && h.at !== h.you) tips.unshift(`If you cannot leave without passing near the threat, lock or block the door of ${you.name} and stay out of sight.`);
+  if (h.at === h.you && !medical) tips.unshift("You reported the danger here: leave now, do not try to deal with it yourself.");
+  html = `<div class="guide ${g.band >= 3 ? "danger" : ""}">
+      <span class="band b${g.band}"><i></i>${BAND_NAME[g.band].toUpperCase()} ROUTE</span>
+      <p class="go">${goText}</p><p class="sub">${sub}</p>
+      ${new Set(r.path.map(floorOf)).size > 1 ? `<p class="why" style="margin-top:0">Floors: ${[...new Set(r.path.map(floorOf))].map(f => FLOOR_NAME[f]).join(" → ")}. Use the stairs, not the lift.</p>` : ""}
+      ${already ? "" : `<div class="stats" style="grid-template-columns:repeat(3,1fr)"><div class="stat"><b>${fmt(r.distance)} m</b><span>distance</span></div><div class="stat"><b>${Math.max(1, Math.round(r.distance / WALK))} s</b><span>walking</span></div><div class="stat"><b>${r.hops}</b><span>rooms</span></div></div>
+      <ol class="steps">${steps}</ol>`}
+      ${why}
+      <ul class="advice">${tips.map(t => `<li>${esc(t)}</li>`).join("")}</ul>
+      <div class="btns"><button class="btn small" data-act="frame">Show on map</button><button class="btn small" data-act="safe">I am safe</button></div></div>`;
+  $("helpOut").innerHTML = html;
+  if (frame) {
+    setFloor(floorOf(h.you), true);
+    const floorsOnRoute = [...new Set(r.path.map(floorOf))];
+    if (floorsOnRoute.length > 1) toast(`Your path continues on the ${FLOOR_NAME[floorOf(r.path[r.path.length - 1])].toLowerCase()}: switch floors at the top to follow it.`);
+  }
+  if (view) {
+    view.setRoutes(r.path.length > 1 ? [{ path: r.path, color: 0x16c784 }] : []);
+    view.setSel(h.you, g.destination, h.at === h.you ? null : h.at);
+    if (frame) view.frame([...new Set([...r.path, h.at])]);
+  }
+}
+
+// Campus RESQ UI · Inspect tab: room risk and blocked state
+"use strict";
+/* ---- inspector ---- */
+function renderNode() {
+  const id = state.selected;
+  if (!id) { $("nodeOut").innerHTML = `<p class="empty">Click any room on the map to inspect it, block it, or add risk.</p><button class="btn small block" data-act="resetall">Reset all rooms (risk, blocks)</button>`; return; }
+  const n = nodeById.get(id), nb = adj.get(id).map(e => esc(nm(e.to))).join(", ");
+  $("nodeOut").innerHTML = `<div class="card" style="margin-top:0"><h4>${n.id} · ${esc(n.name)} <span class="tag">${n.type}</span></h4>
+    <p class="note" style="margin:0 0 10px">Connected to: ${nb}</p>
+    <div class="btns" style="margin:0 0 12px"><button class="btn small" data-act="setfrom">Set as From</button><button class="btn small" data-act="setto">Set as To</button></div>
+    <div class="sl" style="margin-bottom:8px"><span>Risk</span><input type="range" id="nRisk" min="0" max="10" step="0.5" value="${n.manualRisk}"><output>${fmt(n.manualRisk)}</output></div>
+    <label class="check" style="margin:8px 0"><input type="checkbox" id="nBlock" ${n.manualBlocked ? "checked" : ""}><span>Blocked<small>Impassable for every route.</small></span></label>
+    ${n.hzBlocked || n.hzRisk > 0 ? `<p class="note">Emergency effect: risk ${fmt(n.hzRisk)}${n.hzBlocked ? ", blocked" : ""}.</p>` : ""}
+    <button class="btn small block" data-act="resetnode">Reset this room</button></div>`;
+  const upd = () => { n.manualRisk = +$("nRisk").value; n.manualBlocked = $("nBlock").checked; $("nodeOut").querySelector("output").textContent = fmt(n.manualRisk); changed(true); };
+  ["nRisk", "nBlock"].forEach(i => $(i).addEventListener("input", upd));
+}
+
+// Campus RESQ UI · Central state updates and all event handlers (tabs, buttons, map clicks, keyboard)
+"use strict";
+/* ---- central state handling ---- */
+function toRoute() { if (state.view === "drill") setDrill(false); else { state.view = "route"; renderRoute(); } }
+function refreshView() {
+  if (state.view === "help") return renderHelp(false);
+  if (state.view === "plan") { const e = emergencies.find(x => x.id === state.planFor && x.status === "HANDLING"); if (e) return showPlan(e); state.view = "route"; }
+  if (state.view === "drill") return renderDrill();
+  renderRoute();
+}
+function changed(hazard) {
+  if (hazard) state.hazardTouch = true;
+  syncState();
+  if (view) view.refresh(emergencies);
+  renderQueue(); refreshView();
+}
+function hazardsChanged() { applyHazards(emergencies); if (view) view.refresh(emergencies); renderQueue(); state.hazardTouch = true; refreshView(); }
+
+/* ---- events ---- */
+$("selFrom").addEventListener("change", e => { state.from = +e.target.value; setFloor(floorOf(state.from), true); toRoute(); });
+$("selTo").addEventListener("change", e => { state.to = +e.target.value; toRoute(); });
+$("btnSwap").addEventListener("click", () => {
+  if (state.to === 0) return toast("Choose a specific destination to swap.");
+  [state.from, state.to] = [state.to, state.from]; $("selFrom").value = state.from; $("selTo").value = state.to; toRoute();
+});
+const setAlgo = seg("algoSeg", v => { state.algo = v; toRoute(); });
+function setWeights(a, b, g) { state.a = a; state.b = b; state.g = g; $("sa").value = a; $("sb").value = b; $("oa").textContent = a.toFixed(1); $("ob").textContent = b.toFixed(1); }
+$("chkEvac").addEventListener("change", e => { state.evac = e.target.checked; e.target.checked ? setWeights(1, 5, 1.5) : setWeights(1, 2, 1.5); toRoute(); });
+[["sa", "oa", "a"], ["sb", "ob", "b"]].forEach(([s, o, k]) => $(s).addEventListener("input", e => { state[k] = +e.target.value; $(o).textContent = state[k].toFixed(1); toRoute(); }));
+
+seg("typeSeg", v => (state.type = v));
+state.helpType = "fire";
+const setHelpType = seg("hType", v => { state.helpType = v; save(); });
+$("hGo").addEventListener("click", () => { startHelp(); if (innerWidth <= 860) $("helpOut").scrollIntoView({ behavior: "smooth", block: "start" }); });
+$("hYou").addEventListener("change", () => { if (view && !state.help) view.setSel(+$("hYou").value || null, null, null); });
+const armPick = which => { state.helpPick = which; $("hPickYou").classList.toggle("armed", which === "you"); $("hPickAt").classList.toggle("armed", which === "at"); toast(which === "you" ? "Tap the room you are in." : "Tap the room where it is happening."); if (innerWidth <= 860) $("panel").classList.add("collapsed"); };
+$("hPickYou").addEventListener("click", () => armPick("you"));
+$("hPickAt").addEventListener("click", () => armPick("at"));
+$("helpOut").addEventListener("click", ev => {
+  const b = ev.target.closest("[data-act]"); if (!b || !state.help) return;
+  if (b.dataset.act === "frame") { const g = guidePerson(state.help.you, state.help.type, state.help.at); if (view && g.route) view.frame([...new Set([...g.route.path, state.help.at])]); if (innerWidth <= 860) $("panel").classList.add("collapsed"); }
+  if (b.dataset.act === "safe") { state.help = null; renderHelp(false); toast("Glad you are safe. The alert stays open for the command team.", "good"); }
+});
+$("sev").addEventListener("input", e => ($("sevOut").textContent = e.target.value));
+$("btnReport").addEventListener("click", () => {
+  const sev = Math.round(+$("sev").value);
+  if (!(sev >= 1 && sev <= 10) || !nodeById.has(+$("selLoc").value)) return toast("Choose a room and a severity from 1 to 10.");
+  const e = { id: emSeq++, type: state.type, loc: +$("selLoc").value, sev, status: "PENDING" };
+  emergencies.push(e); queue.push(e);
+  if (!state.evac && e.type !== "medical") { $("chkEvac").checked = true; state.evac = true; setWeights(1, 5, 1.5); toast("Evacuation profile switched on.", "good"); }
+  toast(`${TYPE_LABEL[e.type]} reported at ${nm(e.loc)} (severity ${e.sev}).`, "bad");
+  hazardsChanged();
+  setFloor(floorOf(e.loc), true);
+  if (view) view.frame([e.loc, ...adj.get(e.loc).map(x => x.to)]);
+});
+$("btnDispatch").addEventListener("click", () => {
+  const e = queue.pop(); if (!e) return toast("No pending emergencies.");
+  e.status = "HANDLING"; renderQueue(); showPlan(e); toast(`Dispatched: ${TYPE_LABEL[e.type]} at ${nm(e.loc)}.`, "good");
+});
+$("btnClearAlerts").addEventListener("click", () => { emergencies.length = 0; queue = new StdPriorityQueue(); hazardsChanged(); toast("All emergencies cleared."); });
+$("responseOut").addEventListener("click", ev => {
+  const b = ev.target.closest("button"); if (!b) return; const e = emergencies.find(x => x.id === +b.dataset.id); if (!e) return;
+  if (b.dataset.act === "show") { showPlan(e); if (innerWidth <= 860) $("panel").classList.add("collapsed"); }
+  if (b.dataset.act === "resolve") { e.status = "RESOLVED"; toast(`Resolved: ${TYPE_LABEL[e.type]} at ${nm(e.loc)}.`, "good"); hazardsChanged(); }
+});
+
+$("btnDrill").addEventListener("click", () => setDrill(state.view !== "drill"));
+$("nodeOut").addEventListener("click", ev => {
+  const b = ev.target.closest("[data-act]"); if (!b) return;
+  if (b.dataset.act === "resetall") { nodeById.forEach(n => { n.manualRisk = 0; n.manualBlocked = false; }); changed(true); toast("All rooms reset."); return; }
+  if (state.selected == null) return; const n = nodeById.get(state.selected);
+  if (b.dataset.act === "setfrom") { state.from = n.id; $("selFrom").value = n.id; toRoute(); }
+  if (b.dataset.act === "setto") { state.to = n.id; $("selTo").value = n.id; toRoute(); }
+  if (b.dataset.act === "resetnode") { n.manualRisk = 0; n.manualCong = 0; n.manualBlocked = false; changed(true); renderNode(); }
+});
+
+/* tabs, panel, camera tools */
+$("tabs").addEventListener("click", ev => {
+  const b = ev.target.closest("button[data-tab]"); if (!b) return; state.tab = b.dataset.tab;
+  $("tabs").querySelectorAll("button").forEach(x => x.classList.toggle("on", x === b));
+  document.querySelectorAll(".tabbody").forEach(s => s.classList.toggle("on", s.id === "tab-" + state.tab));
+  $("panel").classList.remove("collapsed");
+  if (state.tab === "help" && state.view !== "drill") { state.view = "help"; renderHelp(false); }
+  if (state.tab === "route" && state.view === "help") { state.view = "route"; renderRoute(); }
+});
+$("collapse").addEventListener("click", () => $("panel").classList.toggle("collapsed"));
+function toolOn(id, on) { $(id).classList.toggle("on", on); }
+[["tIso", "iso"], ["tTop", "top"], ["tSide", "side"]].forEach(([id, p]) => $(id).addEventListener("click", () => { if (view) view.preset(p); ["tIso", "tTop", "tSide"].forEach(x => toolOn(x, x === id)); toolOn("tSpin", false); }));
+$("tFrame").addEventListener("click", () => {
+  if (!view) return; const ids = new Set();
+  if (state.view === "plan") { const e = emergencies.find(x => x.id === state.planFor); if (e) { const p = makePlan(e); [p.evac, p.responder].forEach(r => r && r.path.forEach(i => ids.add(i))); ids.add(e.loc); } }
+  else { const res = planRoutes(); Object.values(res).forEach(r => r && r.path.forEach(i => ids.add(i))); ids.add(state.from); }
+  view.frame([...ids]);
+});
+$("tLabels").addEventListener("click", () => { if (view) toast("Labels: " + view.cycleLabels()); });
+$("tSpin").addEventListener("click", () => { if (view) toolOn("tSpin", view.toggleSpin()); });
+if (view) {
+  view.onPick = id => {
+    state.selected = id; renderNode();
+    if (state.tab === "help") {
+      if (state.helpPick === "at") { $("hAt").value = id; toast("Happening at: " + nm(id)); state.helpPick = "you"; }
+      else { $("hYou").value = id; toast("You are in: " + nm(id)); }
+      $("hPickYou").classList.remove("armed"); $("hPickAt").classList.remove("armed");
+      $("panel").classList.remove("collapsed");
+      if (state.help) { state.help.you = +$("hYou").value; state.help.at = +$("hAt").value || state.help.you; }
+      if (state.help) return renderHelp(false);
+      if (view) view.setSel(+$("hYou").value || null, null, null);
+      return;
+    }
+    if (state.tab === "alerts") { $("selLoc").value = id; toast("Alert location: " + nm(id)); }
+    else if (state.tab === "route") {
+      if (state.nextPick === "from") { state.from = id; $("selFrom").value = id; state.nextPick = "to"; toast("From: " + nm(id)); }
+      else { state.to = id; $("selTo").value = id; state.nextPick = "from"; toast("To: " + nm(id)); }
+      if (state.view === "drill") return setDrill(false);
+      state.view = "route";
+    }
+    refreshView();
+  };
+  const tip = $("tip");
+  view.onHover = (id, x, y) => {
+    if (!id) { tip.style.display = "none"; return; }
+    const n = nodeById.get(id);
+    tip.innerHTML = `<b>${esc(n.name)}</b><span>#${n.id} · ${n.type}${n.blocked ? " · BLOCKED" : ""}${n.risk > 0.05 ? " · risk " + fmt(n.risk) : ""}${n.congestion > 0.05 ? " · crowd " + fmt(n.congestion) : ""}</span>`;
+    tip.style.display = "block"; tip.style.left = Math.min(x + 14, innerWidth - 230) + "px"; tip.style.top = Math.max(y - 54, 8) + "px";
+  };
+  const retheme = () => view.applyTheme();
+  matchMedia("(prefers-color-scheme: light)").addEventListener("change", retheme);
+  new MutationObserver(retheme).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+}
+
+$("modeSeg").addEventListener("click", ev => { const b = ev.target.closest("button"); if (b) setMode(b.dataset.v); });
+window.addEventListener("hashchange", () => { const h = parseHash(location.hash); if (h.floor !== floor) setFloor(h.floor, true); if (h.mode !== mode) setMode(h.mode, true); });
+$("floorSeg").addEventListener("click", ev => { const b = ev.target.closest("button"); if (b) setFloor(+b.dataset.v); });
+$("tZin").addEventListener("click", () => flatView() && flatView().zoomBy(0.7));
+$("tZout").addEventListener("click", () => flatView() && flatView().zoomBy(1.4));
+
+/* single-floor edition: no floor switch, no floor-link legend items */
+if (FLOORS.length < 2) { $("floorSeg").hidden = true; document.querySelectorAll("#legend .lgfloor").forEach(e => (e.hidden = true)); }
+
+// Campus RESQ UI · Start-up: restore state, apply hazards, first render
+"use strict";
+/* boot */
+setMode(mode, true);
+if (view && document.fonts && document.fonts.ready) document.fonts.ready.then(() => view.applyTheme());
+load();
+applyHazards(emergencies); if (view) view.refresh(emergencies);
+renderQueue(); renderNode(); renderRoute(); state.view = "help"; renderHelp(false);
+})();
+</script>
+</body>
+</html>
